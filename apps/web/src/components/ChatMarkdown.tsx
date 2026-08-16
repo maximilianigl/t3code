@@ -148,7 +148,7 @@ import {
   serializeTableElementToMarkdown,
 } from "../markdown-clipboard";
 import { remarkNormalizeListItemIndentation } from "../markdown-list-indentation";
-import { normalizeLatexMathDelimiters } from "../markdown-math";
+import { normalizeLatexMathDelimiters, remarkPromoteBracketDisplayMath } from "../markdown-math";
 import {
   extractMarkdownLinkHrefs,
   isWindowsDrivePathHref,
@@ -487,27 +487,6 @@ const CHAT_MARKDOWN_SANITIZE_SCHEMA = {
     src: [...(defaultSchema.protocols?.src ?? []), "file", "t3-context"],
   },
 } satisfies Parameters<typeof rehypeSanitize>[0];
-
-const CHAT_MARKDOWN_REMARK_PLUGINS = [
-  remarkGfm,
-  [remarkMath, { singleDollarTextMath: false }],
-  remarkGithubAlerts,
-  remarkNormalizeListItemIndentation,
-  remarkCodexDirectives,
-  remarkPreserveCodeMeta,
-  remarkNormalizeLinksAndTagInlineCode,
-] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
-
-const CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS = [
-  remarkGfm,
-  [remarkMath, { singleDollarTextMath: false }],
-  remarkGithubAlerts,
-  remarkNormalizeListItemIndentation,
-  remarkCodexDirectives,
-  remarkBreaks,
-  remarkPreserveCodeMeta,
-  remarkNormalizeLinksAndTagInlineCode,
-] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
 
 const CHAT_MARKDOWN_REHYPE_PLUGINS = [
   rehypeRaw,
@@ -2366,6 +2345,21 @@ function useChatMarkdownState({
   );
   const diffThemeName = resolveDiffThemeName(resolvedTheme);
   const markdownSource = useMemo(() => normalizeLatexMathDelimiters(text), [text]);
+  const remarkPlugins = useMemo(
+    () =>
+      [
+        remarkGfm,
+        [remarkMath, { singleDollarTextMath: false }],
+        [remarkPromoteBracketDisplayMath, { source: text }],
+        remarkGithubAlerts,
+        remarkNormalizeListItemIndentation,
+        remarkCodexDirectives,
+        ...(lineBreaks ? [remarkBreaks] : []),
+        remarkPreserveCodeMeta,
+        remarkNormalizeLinksAndTagInlineCode,
+      ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>,
+    [lineBreaks, text],
+  );
   const markdownFileLinkMetaByHref = useMemo(() => {
     const metaByHref = new Map<
       string,
