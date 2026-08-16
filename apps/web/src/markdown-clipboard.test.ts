@@ -67,6 +67,12 @@ class FakeElement {
       if (target === 'input[type="checkbox"]') {
         return element.tagName === "INPUT" && element.getAttribute("type") === "checkbox";
       }
+      if (target === 'annotation[encoding="application/x-tex"]') {
+        return (
+          element.tagName === "ANNOTATION" &&
+          element.getAttribute("encoding") === "application/x-tex"
+        );
+      }
       return element.tagName === target.toUpperCase();
     };
     const search = (parent: FakeElement): FakeElement | null => {
@@ -260,6 +266,31 @@ describe("serializeRenderedMarkdownFragment", () => {
 
     expect(serializeRenderedMarkdownFragment(asNode(container))).toBe(
       "Hello World (Document template)",
+    );
+  });
+
+  it("serializes inline KaTeX back to explicit LaTeX delimiters", () => {
+    const annotation = new FakeElement("ANNOTATION", [], {
+      encoding: "application/x-tex",
+    }).append(new FakeText("e^{i\\pi} + 1 = 0"));
+    const math = new FakeElement("SPAN", ["katex"]).append(annotation);
+    const container = new FakeElement("DIV").append(new FakeText("Euler: "), math);
+
+    expect(serializeRenderedMarkdownFragment(asNode(container))).toBe(
+      "Euler: \\(e^{i\\pi} + 1 = 0\\)",
+    );
+  });
+
+  it("serializes display KaTeX back to explicit LaTeX delimiters", () => {
+    const annotation = new FakeElement("ANNOTATION", [], {
+      encoding: "application/x-tex",
+    }).append(new FakeText("A_t = \\lambda_t A_t^{\\text{local}}"));
+    const math = new FakeElement("SPAN", ["katex"]).append(annotation);
+    const display = new FakeElement("SPAN", ["katex-display"]).append(math);
+    const container = new FakeElement("DIV").append(display);
+
+    expect(serializeRenderedMarkdownFragment(asNode(container))).toBe(
+      "\\[\nA_t = \\lambda_t A_t^{\\text{local}}\n\\]",
     );
   });
 });
