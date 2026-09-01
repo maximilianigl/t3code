@@ -19,5 +19,11 @@ export function createGitEnvironmentAtoms<R, E>(
       scheduler: vcsCommandScheduler,
       concurrency: vcsCommandConcurrency,
     }),
+    prepareBranchThread: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:git:prepare-branch-thread",
+      tag: WS_METHODS.gitPrepareBranchThread,
+      scheduler: vcsCommandScheduler,
+      concurrency: vcsCommandConcurrency,
+    }),
   };
 }
