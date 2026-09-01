@@ -169,4 +169,50 @@ describe("ElectronShell", () => {
       assert.equal(result, false);
     }).pipe(Effect.provide(ElectronShell.layer)),
   );
+
+  it.effect("opens NVIDIA managed authentication in Prisma Browser on macOS", () =>
+    Effect.gen(function* () {
+      const openDefault = vi.fn().mockResolvedValue(undefined);
+      const openMacBundle = vi.fn().mockResolvedValue(true);
+      const electronShell = ElectronShell.make({
+        platform: "darwin",
+        openDefault,
+        openMacBundle,
+      });
+      const authUrl =
+        "https://login.microsoftonline.com/example/oauth2/v2.0/authorize?" +
+        new URLSearchParams({
+          client_id: "example",
+          redirect_uri: "https://authservice.nvidia.com/oauth",
+        }).toString();
+
+      const result = yield* electronShell.openExternal(authUrl);
+
+      assert.equal(result, true);
+      assert.deepEqual(openMacBundle.mock.calls, [["com.talon-sec.Work", authUrl]]);
+      assert.equal(openDefault.mock.calls.length, 0);
+    }),
+  );
+
+  it.effect("falls back to the default browser when Prisma Browser cannot open", () =>
+    Effect.gen(function* () {
+      const openDefault = vi.fn().mockResolvedValue(undefined);
+      const openMacBundle = vi.fn().mockResolvedValue(false);
+      const electronShell = ElectronShell.make({
+        platform: "darwin",
+        openDefault,
+        openMacBundle,
+      });
+      const authUrl =
+        "https://login.microsoftonline.com/example/oauth2/v2.0/authorize?" +
+        new URLSearchParams({
+          redirect_uri: "https://authservice.nvidia.com/oauth",
+        }).toString();
+
+      const result = yield* electronShell.openExternal(authUrl);
+
+      assert.equal(result, true);
+      assert.deepEqual(openDefault.mock.calls, [[authUrl]]);
+    }),
+  );
 });

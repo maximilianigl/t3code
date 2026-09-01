@@ -1,3 +1,4 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   REMOTE_CAPABLE_EDITOR_IDS,
   remoteSchemeForEditor,
@@ -7,6 +8,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
 
 import * as Electron from "electron";
 
@@ -23,6 +25,7 @@ const SYSTEM_SETTINGS_URLS: Record<SystemSettingsPane, string> = {
   "full-disk-access":
     "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AllFiles",
 };
+const PRISMA_BROWSER_BUNDLE_ID = "com.talon-sec.Work";
 
 // Remote open-in-editor deep links (`vscode://vscode-remote/ssh-remote+…`,
 // `zed://ssh/<host>/<path>`) must reach the OS handler; every other non-web
@@ -63,6 +66,28 @@ export function parseSafeExternalUrl(rawUrl: unknown): Option.Option<string> {
   }
 }
 
+export function isNvidiaManagedAuthUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== "login.microsoftonline.com" ||
+      !url.pathname.endsWith("/oauth2/v2.0/authorize")
+    ) {
+      return false;
+    }
+
+    const redirectUrl = new URL(url.searchParams.get("redirect_uri") ?? "");
+    return (
+      redirectUrl.protocol === "https:" &&
+      redirectUrl.hostname === "authservice.nvidia.com" &&
+      redirectUrl.pathname === "/oauth"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export class ElectronShell extends Context.Service<
   ElectronShell,
   {
@@ -73,28 +98,67 @@ export class ElectronShell extends Context.Service<
   }
 >()("@t3tools/desktop/electron/ElectronShell") {}
 
-/** @public Service construction is part of the canonical Effect module API. */
-export const make = ElectronShell.of({
-  openExternal: (rawUrl) =>
-    Option.match(parseSafeExternalUrl(rawUrl), {
-      onNone: () => Effect.succeed(false),
-      onSome: (externalUrl) =>
-        Effect.promise(() =>
-          Electron.shell.openExternal(externalUrl).then(
-            () => true,
-            () => false,
-          ),
-        ),
-    }),
-  openSystemSettings: (pane) =>
-    Effect.promise(() =>
-      Electron.shell.openExternal(SYSTEM_SETTINGS_URLS[pane]).then(
-        () => true,
-        () => false,
-      ),
-    ),
-  copyText: (text) =>
-    Effect.promise(() => Electron.clipboard.writeText(text).catch(() => undefined)),
-});
+interface ElectronShellDependencies {
+  readonly platform: NodeJS.Platform;
+  readonly openDefault: (url: string) => Promise<void>;
+  readonly openMacBundle: (bundleId: string, url: string) => Promise<boolean>;
+}
 
-export const layer = Layer.succeed(ElectronShell, make);
+/** @public Service construction is part of the canonical Effect module API. */
+export const make = (dependencies: ElectronShellDependencies) =>
+  ElectronShell.of({
+    openExternal: (rawUrl) =>
+      Option.match(parseSafeExternalUrl(rawUrl), {
+        onNone: () => Effect.succeed(false),
+        onSome: (externalUrl) =>
+          Effect.promise(async () => {
+            if (
+              dependencies.platform === "darwin" &&
+              isNvidiaManagedAuthUrl(externalUrl) &&
+              (await dependencies
+                .openMacBundle(PRISMA_BROWSER_BUNDLE_ID, externalUrl)
+                .catch(() => false))
+            ) {
+              return true;
+            }
+
+            return dependencies.openDefault(externalUrl).then(
+              () => true,
+              () => false,
+            );
+          }),
+      }),
+    openSystemSettings: (pane) =>
+      Effect.promise(() =>
+        dependencies.openDefault(SYSTEM_SETTINGS_URLS[pane]).then(
+          () => true,
+          () => false,
+        ),
+      ),
+    copyText: (text) =>
+      Effect.promise(() => Electron.clipboard.writeText(text).catch(() => undefined)),
+  });
+
+const openMacBundle = (bundleId: string, url: string) =>
+  Effect.gen(function* () {
+    const process = yield* ChildProcess.make("/usr/bin/open", ["-b", bundleId, url], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    const exitCode = yield* process.exitCode;
+    return exitCode === 0;
+  }).pipe(
+    Effect.scoped,
+    Effect.orElseSucceed(() => false),
+    Effect.provide(NodeServices.layer),
+    Effect.runPromise,
+  );
+
+export const layer = Layer.succeed(
+  ElectronShell,
+  make({
+    platform: process.platform,
+    openDefault: (url) => Electron.shell.openExternal(url),
+    openMacBundle,
+  }),
+);
