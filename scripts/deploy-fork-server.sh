@@ -11,9 +11,8 @@
 #
 # Usage: scripts/deploy-fork-server.sh <ssh-host>
 #
-# Prereqs: `vp run --filter t3 build` and
-# `(cd apps/server && npm pack --pack-destination ../../release)` have run,
-# and the remote has node >= 22.16 and npm on PATH.
+# Prereqs: `vp run --filter t3 build` and `node scripts/pack-fork-server.mjs`
+# have run, and the remote has node >= 22.16 and npm on PATH.
 set -euo pipefail
 
 host="${1:?usage: deploy-fork-server.sh <ssh-host>}"
@@ -23,7 +22,7 @@ tarball="$repo_root/release/t3-$version.tgz"
 
 if [[ ! -f "$tarball" ]]; then
   echo "Missing $tarball — build it first:" >&2
-  echo "  vp run --filter t3 build && (cd apps/server && npm pack --pack-destination ../../release)" >&2
+  echo "  vp run --filter t3 build && node scripts/pack-fork-server.mjs" >&2
   exit 1
 fi
 
