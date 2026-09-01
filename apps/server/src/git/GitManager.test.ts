@@ -19,6 +19,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import { expect } from "vite-plus/test";
 import type {
   GitActionProgressEvent,
+  GitPrepareBranchThreadInput,
   GitPreparePullRequestThreadInput,
   ThreadId,
 } from "@t3tools/contracts";
@@ -622,6 +623,13 @@ function preparePullRequestThread(
   input: GitPreparePullRequestThreadInput,
 ) {
   return manager.preparePullRequestThread(input);
+}
+
+function prepareBranchThread(
+  manager: GitManager.GitManager["Service"],
+  input: GitPrepareBranchThreadInput,
+) {
+  return manager.prepareBranchThread(input);
 }
 
 function makeManager(input?: {
@@ -4612,6 +4620,159 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         threadId: "thread-pr-setup",
         projectCwd: repoDir,
         worktreePath: result.worktreePath as string,
+      });
+    }),
+  );
+
+  it.effect("creates a worktree for a branch that has none", () =>
+    Effect.gen(function* () {
+      const repoDir = yield* makeTempDir("t3code-git-manager-");
+      yield* initRepo(repoDir);
+      yield* runGit(repoDir, ["checkout", "-b", "feature/plain-branch"]);
+      NodeFS.writeFileSync(NodePath.join(repoDir, "plain.txt"), "plain\n");
+      yield* runGit(repoDir, ["add", "plain.txt"]);
+      yield* runGit(repoDir, ["commit", "-m", "Plain branch"]);
+      yield* runGit(repoDir, ["checkout", "main"]);
+
+      const setupCalls: ProjectSetupScriptRunner.ProjectSetupScriptRunnerInput[] = [];
+      const { manager } = yield* makeManager({
+        setupScriptRunner: {
+          runForThread: (setupInput) =>
+            Effect.sync(() => {
+              setupCalls.push(setupInput);
+              return { status: "no-script" as const };
+            }),
+        },
+      });
+
+      const result = yield* prepareBranchThread(manager, {
+        cwd: repoDir,
+        refName: "feature/plain-branch",
+        threadId: asThreadId("thread-branch-worktree"),
+      });
+
+      expect(result.branch).toBe("feature/plain-branch");
+      expect(result.worktreePath).not.toBeNull();
+      const worktreeBranch = (yield* runGit(result.worktreePath as string, [
+        "branch",
+        "--show-current",
+      ])).stdout.trim();
+      expect(worktreeBranch).toBe("feature/plain-branch");
+      const rootBranch = (yield* runGit(repoDir, ["branch", "--show-current"])).stdout.trim();
+      expect(rootBranch).toBe("main");
+      expect(setupCalls).toEqual([
+        {
+          threadId: "thread-branch-worktree",
+          projectCwd: repoDir,
+          worktreePath: result.worktreePath as string,
+        },
+      ]);
+    }),
+  );
+
+  it.effect("reuses the branch's existing worktree without re-running setup", () =>
+    Effect.gen(function* () {
+      const repoDir = yield* makeTempDir("t3code-git-manager-");
+      yield* initRepo(repoDir);
+      yield* runGit(repoDir, ["branch", "feature/existing-worktree"]);
+      const worktreeParent = yield* makeTempDir("t3code-git-worktree-");
+      const worktreeDir = NodePath.join(worktreeParent, "existing");
+      yield* runGit(repoDir, ["worktree", "add", worktreeDir, "feature/existing-worktree"]);
+
+      const setupCalls: ProjectSetupScriptRunner.ProjectSetupScriptRunnerInput[] = [];
+      const { manager } = yield* makeManager({
+        setupScriptRunner: {
+          runForThread: (setupInput) =>
+            Effect.sync(() => {
+              setupCalls.push(setupInput);
+              return { status: "no-script" as const };
+            }),
+        },
+      });
+
+      const result = yield* prepareBranchThread(manager, {
+        cwd: repoDir,
+        refName: "feature/existing-worktree",
+        threadId: asThreadId("thread-branch-reuse"),
+      });
+
+      expect(result.branch).toBe("feature/existing-worktree");
+      expect(result.worktreePath).not.toBeNull();
+      expect(NodeFS.realpathSync(result.worktreePath as string)).toBe(
+        NodeFS.realpathSync(worktreeDir),
+      );
+      expect(setupCalls).toHaveLength(0);
+    }),
+  );
+
+  it.effect(
+    "keeps the thread on the local checkout when the branch is checked out in the root",
+    () =>
+      Effect.gen(function* () {
+        const repoDir = yield* makeTempDir("t3code-git-manager-");
+        yield* initRepo(repoDir);
+
+        const { manager } = yield* makeManager();
+
+        const result = yield* prepareBranchThread(manager, {
+          cwd: repoDir,
+          refName: "main",
+        });
+
+        expect(result).toEqual({ branch: "main", worktreePath: null });
+        const rootBranch = (yield* runGit(repoDir, ["branch", "--show-current"])).stdout.trim();
+        expect(rootBranch).toBe("main");
+      }),
+  );
+
+  it.effect("materializes a remote-only branch into a new worktree", () =>
+    Effect.gen(function* () {
+      const repoDir = yield* makeTempDir("t3code-git-manager-");
+      yield* initRepo(repoDir);
+      const remoteDir = yield* createBareRemote();
+      yield* runGit(repoDir, ["remote", "add", "origin", remoteDir]);
+      yield* runGit(repoDir, ["push", "-u", "origin", "main"]);
+      yield* runGit(repoDir, ["checkout", "-b", "feature/remote-only"]);
+      NodeFS.writeFileSync(NodePath.join(repoDir, "remote-only.txt"), "remote\n");
+      yield* runGit(repoDir, ["add", "remote-only.txt"]);
+      yield* runGit(repoDir, ["commit", "-m", "Remote-only branch"]);
+      yield* runGit(repoDir, ["push", "-u", "origin", "feature/remote-only"]);
+      yield* runGit(repoDir, ["checkout", "main"]);
+      yield* runGit(repoDir, ["branch", "-D", "feature/remote-only"]);
+
+      const { manager } = yield* makeManager();
+
+      const result = yield* prepareBranchThread(manager, {
+        cwd: repoDir,
+        refName: "origin/feature/remote-only",
+      });
+
+      expect(result.branch).toBe("feature/remote-only");
+      expect(result.worktreePath).not.toBeNull();
+      const worktreeBranch = (yield* runGit(result.worktreePath as string, [
+        "branch",
+        "--show-current",
+      ])).stdout.trim();
+      expect(worktreeBranch).toBe("feature/remote-only");
+    }),
+  );
+
+  it.effect("fails when the requested ref does not exist", () =>
+    Effect.gen(function* () {
+      const repoDir = yield* makeTempDir("t3code-git-manager-");
+      yield* initRepo(repoDir);
+
+      const { manager } = yield* makeManager();
+
+      const error = yield* prepareBranchThread(manager, {
+        cwd: repoDir,
+        refName: "feature/does-not-exist",
+      }).pipe(Effect.flip);
+
+      expect(error).toMatchObject({
+        _tag: "GitManagerError",
+        operation: "prepareBranchThread",
+        cwd: repoDir,
       });
     }),
   );

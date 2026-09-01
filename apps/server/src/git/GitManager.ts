@@ -19,6 +19,8 @@ import {
   GitCommandError,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
+  GitPrepareBranchThreadInput,
+  GitPrepareBranchThreadResult,
   GitPullRequestRefInput,
   GitResolvePullRequestResult,
   GitRunStackedActionInput,
@@ -33,6 +35,7 @@ import {
   type SourceControlWritingStyleSettings,
 } from "@t3tools/contracts";
 import {
+  deriveLocalBranchNameFromRemoteRef,
   detectSourceControlProviderFromGitRemoteUrl,
   mergeGitStatusParts,
   normalizeGitRemoteUrl,
@@ -116,6 +119,9 @@ export class GitManager extends Context.Service<
     readonly preparePullRequestThread: (
       input: GitPreparePullRequestThreadInput,
     ) => Effect.Effect<GitPreparePullRequestThreadResult, GitManagerServiceError>;
+    readonly prepareBranchThread: (
+      input: GitPrepareBranchThreadInput,
+    ) => Effect.Effect<GitPrepareBranchThreadResult, GitManagerServiceError>;
     readonly runStackedAction: (
       input: GitRunStackedActionInput,
       options?: GitRunStackedActionOptions,
@@ -2498,6 +2504,92 @@ export const make = Effect.gen(function* () {
     }).pipe(Effect.ensuring(invalidateStatus(input.cwd)));
   });
 
+  // The branch-level sibling of preparePullRequestThread: hand a thread the
+  // worktree its branch already lives in, or create one checked out to that
+  // branch. Unlike the pull request flow there is no authoritative remote head
+  // to refresh toward, so a reused worktree is handed back exactly as it
+  // stands.
+  const prepareBranchThread: GitManager["Service"]["prepareBranchThread"] = Effect.fn(
+    "prepareBranchThread",
+  )(function* (input) {
+    const maybeRunSetupScript = (worktreePath: string) => {
+      if (!input.threadId) {
+        return Effect.void;
+      }
+      return projectSetupScriptRunner
+        .runForThread({
+          threadId: input.threadId,
+          projectCwd: input.cwd,
+          worktreePath,
+        })
+        .pipe(
+          Effect.catch((error) =>
+            Effect.logWarning("GitManager.prepareBranchThread setup script failed", {
+              threadId: input.threadId,
+              worktreePath,
+              cause: error,
+            }).pipe(Effect.asVoid),
+          ),
+        );
+    };
+    return yield* Effect.gen(function* () {
+      const rootWorktreePath = yield* canonicalizeExistingPath(input.cwd);
+      // The derived local name is a suffix of the requested ref, so a single
+      // query returns the ref itself alongside a local twin of a remote ref.
+      const localCandidateName = deriveLocalBranchNameFromRemoteRef(input.refName);
+      const listed = yield* gitCore.listRefs({
+        cwd: input.cwd,
+        refresh: true,
+        query: localCandidateName,
+      });
+      const findLocal = (name: string) =>
+        listed.refs.find((ref) => ref.isRemote !== true && ref.name === name) ?? null;
+      const requestedRemote =
+        listed.refs.find((ref) => ref.isRemote === true && ref.name === input.refName) ?? null;
+      // A remote ref resolves to its local twin when one exists: the picker
+      // normally hides such remotes, but a stale ref list can still offer one,
+      // and creating a second local branch for it would fail.
+      const localBranch =
+        findLocal(input.refName) ??
+        (localCandidateName !== input.refName ? findLocal(localCandidateName) : null);
+
+      if (localBranch?.worktreePath) {
+        const worktreePath = yield* canonicalizeExistingPath(localBranch.worktreePath);
+        return {
+          branch: localBranch.name,
+          // The root checkout is not a worktree: the thread runs on the local
+          // checkout, and the checkout is left exactly as it stands.
+          worktreePath: worktreePath === rootWorktreePath ? null : localBranch.worktreePath,
+        };
+      }
+
+      if (!localBranch && !requestedRemote) {
+        return yield* new GitManagerError({
+          operation: "prepareBranchThread",
+          cwd: input.cwd,
+          detail: `Ref '${input.refName}' was not found in this repository.`,
+        });
+      }
+
+      const worktree = yield* gitCore.createWorktree(
+        localBranch
+          ? { cwd: input.cwd, refName: localBranch.name, path: null }
+          : {
+              cwd: input.cwd,
+              refName: input.refName,
+              newRefName: localCandidateName,
+              path: null,
+            },
+      );
+      yield* maybeRunSetupScript(worktree.worktree.path);
+
+      return {
+        branch: worktree.worktree.refName,
+        worktreePath: worktree.worktree.path,
+      };
+    }).pipe(Effect.ensuring(invalidateStatus(input.cwd)));
+  });
+
   const runFeatureBranchStep = Effect.fn("runFeatureBranchStep")(function* (
     settings: SourceControlTextGenerationSettings,
     cwd: string,
@@ -2752,6 +2844,7 @@ export const make = Effect.gen(function* () {
     invalidateStatus,
     resolvePullRequest,
     preparePullRequestThread,
+    prepareBranchThread,
     runStackedAction,
   });
 });

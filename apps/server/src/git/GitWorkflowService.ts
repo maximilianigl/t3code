@@ -16,6 +16,8 @@ import {
   type GitManagerServiceError,
   type GitPreparePullRequestThreadInput,
   type GitPreparePullRequestThreadResult,
+  type GitPrepareBranchThreadInput,
+  type GitPrepareBranchThreadResult,
   type GitPullRequestRefInput,
   type VcsPullResult,
   type VcsRemoveWorktreeInput,
@@ -59,6 +61,9 @@ export class GitWorkflowService extends Context.Service<
     readonly preparePullRequestThread: (
       input: GitPreparePullRequestThreadInput,
     ) => Effect.Effect<GitPreparePullRequestThreadResult, GitManagerServiceError>;
+    readonly prepareBranchThread: (
+      input: GitPrepareBranchThreadInput,
+    ) => Effect.Effect<GitPrepareBranchThreadResult, GitManagerServiceError>;
     readonly listRefs: (
       input: VcsListRefsInput,
     ) => Effect.Effect<VcsListRefsResult, GitCommandError>;
@@ -301,6 +306,10 @@ export const make = Effect.gen(function* () {
     preparePullRequestThread: routeGitManager(
       "GitWorkflowService.preparePullRequestThread",
       gitManager.preparePullRequestThread,
+    ),
+    prepareBranchThread: routeGitManager(
+      "GitWorkflowService.prepareBranchThread",
+      gitManager.prepareBranchThread,
     ),
     listRefs: (input) =>
       detectGitRepositoryForCommand("GitWorkflowService.listRefs", input.cwd).pipe(

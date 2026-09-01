@@ -13,6 +13,8 @@ import type {
   VcsSwitchRefResult,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
+  GitPrepareBranchThreadInput,
+  GitPrepareBranchThreadResult,
   GitPullRequestRefInput,
   GitResolvePullRequestResult,
   VcsStatusInput,
@@ -1542,6 +1544,9 @@ export interface EnvironmentApi {
     preparePullRequestThread: (
       input: GitPreparePullRequestThreadInput,
     ) => Promise<GitPreparePullRequestThreadResult>;
+    prepareBranchThread: (
+      input: GitPrepareBranchThreadInput,
+    ) => Promise<GitPrepareBranchThreadResult>;
   };
   review: {
     getDiffPreview: (input: ReviewDiffPreviewInput) => Promise<ReviewDiffPreviewResult>;

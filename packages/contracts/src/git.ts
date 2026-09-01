@@ -160,6 +160,13 @@ export const GitPreparePullRequestThreadInput = Schema.Struct({
 });
 export type GitPreparePullRequestThreadInput = typeof GitPreparePullRequestThreadInput.Type;
 
+export const GitPrepareBranchThreadInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  refName: TrimmedNonEmptyStringSchema,
+  threadId: Schema.optional(ThreadId),
+});
+export type GitPrepareBranchThreadInput = typeof GitPrepareBranchThreadInput.Type;
+
 export const VcsRemoveWorktreeInput = Schema.Struct({
   cwd: TrimmedNonEmptyStringSchema,
   path: TrimmedNonEmptyStringSchema,
@@ -295,6 +302,16 @@ export const GitPreparePullRequestThreadResult = Schema.Struct({
   isOnPullRequestHead: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(true))),
 });
 export type GitPreparePullRequestThreadResult = typeof GitPreparePullRequestThreadResult.Type;
+
+export const GitPrepareBranchThreadResult = Schema.Struct({
+  branch: TrimmedNonEmptyStringSchema,
+  /**
+   * Null when the branch lives in the repository's root checkout: the thread
+   * should run on the local checkout rather than in a worktree.
+   */
+  worktreePath: TrimmedNonEmptyStringSchema.pipe(Schema.NullOr),
+});
+export type GitPrepareBranchThreadResult = typeof GitPrepareBranchThreadResult.Type;
 
 export const VcsSwitchRefResult = Schema.Struct({
   refName: Schema.NullOr(TrimmedNonEmptyStringSchema),
