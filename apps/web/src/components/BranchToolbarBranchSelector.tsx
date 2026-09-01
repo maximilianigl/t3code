@@ -29,6 +29,7 @@ import {
 } from "react";
 
 import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
+import { gitEnvironment } from "../state/git";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import { readLocalApi } from "../localApi";
 import { useOpenPrLink } from "../lib/openPullRequestLink";
@@ -123,7 +124,7 @@ export function BranchToolbarBranchSelector({
   const updateEmptyThreadMetadata = useAtomCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
   });
-  const switchRef = useAtomCommand(vcsEnvironment.switchRef, {
+  const prepareBranchThread = useAtomCommand(gitEnvironment.prepareBranchThread, {
     reportFailure: false,
   });
   const createRefMutation = useAtomCommand(vcsEnvironment.createRef, {
@@ -407,31 +408,34 @@ export function BranchToolbarBranchSelector({
     setIsBranchMenuOpen(false);
     onComposerFocusRequest?.();
 
+    // A branch without a worktree gets one (reused if the server finds one the
+    // ref list missed, created otherwise) instead of being checked out in
+    // place: the current directory may be the main checkout or another
+    // thread's worktree, and neither should move because a draft picked a
+    // branch.
     runBranchAction(async () => {
       const previousBranch = resolvedActiveBranch;
       setOptimisticBranch(selectedBranchName);
-      const checkoutResult = await switchRef({
+      const prepareResult = await prepareBranchThread({
         environmentId,
         input: {
-          cwd: selectionTarget.checkoutCwd,
+          cwd: activeProjectCwd,
           refName: refName.name,
+          ...(activeThreadId ? { threadId: activeThreadId } : {}),
         },
       });
-      if (checkoutResult._tag === "Success") {
-        const nextBranchName = refName.isRemote
-          ? (checkoutResult.value.refName ?? selectedBranchName)
-          : selectedBranchName;
-        setOptimisticBranch(nextBranchName);
-        setThreadBranch(nextBranchName, selectionTarget.nextWorktreePath);
+      if (prepareResult._tag === "Success") {
+        setOptimisticBranch(prepareResult.value.branch);
+        setThreadBranch(prepareResult.value.branch, prepareResult.value.worktreePath);
         return;
       }
       setOptimisticBranch(previousBranch);
-      if (!isAtomCommandInterrupted(checkoutResult)) {
+      if (!isAtomCommandInterrupted(prepareResult)) {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to switch ref.",
-            description: toBranchActionErrorMessage(squashAtomCommandFailure(checkoutResult)),
+            title: "Failed to prepare a worktree for the branch.",
+            description: toBranchActionErrorMessage(squashAtomCommandFailure(prepareResult)),
           }),
         );
       }
@@ -441,7 +445,7 @@ export function BranchToolbarBranchSelector({
   const createRef = (rawName: string) => {
     if (!canChangeThreadBranch) return;
     const name = sanitizeNewRefName(rawName);
-    if (!branchCwd || !name || isBranchActionPending) return;
+    if (!branchCwd || !activeProjectCwd || !name || isBranchActionPending) return;
 
     setIsBranchMenuOpen(false);
     onComposerFocusRequest?.();
@@ -449,26 +453,50 @@ export function BranchToolbarBranchSelector({
     runBranchAction(async () => {
       const previousBranch = resolvedActiveBranch;
       setOptimisticBranch(name);
+      // The ref is cut from the current checkout's HEAD but not checked out
+      // here: like selecting an existing branch, a hand-named new branch gets
+      // its own worktree instead of moving the directory it was created from.
       const createBranchResult = await createRefMutation({
         environmentId,
         input: {
           cwd: branchCwd,
           refName: name,
-          switchRef: true,
+          switchRef: false,
         },
       });
-      if (createBranchResult._tag === "Success") {
-        setOptimisticBranch(createBranchResult.value.refName);
-        setThreadBranch(createBranchResult.value.refName, activeWorktreePath);
+      if (createBranchResult._tag !== "Success") {
+        setOptimisticBranch(previousBranch);
+        if (!isAtomCommandInterrupted(createBranchResult)) {
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Failed to create ref.",
+              description: toBranchActionErrorMessage(squashAtomCommandFailure(createBranchResult)),
+            }),
+          );
+        }
+        return;
+      }
+      const prepareResult = await prepareBranchThread({
+        environmentId,
+        input: {
+          cwd: activeProjectCwd,
+          refName: createBranchResult.value.refName,
+          ...(activeThreadId ? { threadId: activeThreadId } : {}),
+        },
+      });
+      if (prepareResult._tag === "Success") {
+        setOptimisticBranch(prepareResult.value.branch);
+        setThreadBranch(prepareResult.value.branch, prepareResult.value.worktreePath);
         return;
       }
       setOptimisticBranch(previousBranch);
-      if (!isAtomCommandInterrupted(createBranchResult)) {
+      if (!isAtomCommandInterrupted(prepareResult)) {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to create and switch ref.",
-            description: toBranchActionErrorMessage(squashAtomCommandFailure(createBranchResult)),
+            title: "Failed to prepare a worktree for the branch.",
+            description: toBranchActionErrorMessage(squashAtomCommandFailure(prepareResult)),
           }),
         );
       }

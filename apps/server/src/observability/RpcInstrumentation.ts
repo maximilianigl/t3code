@@ -169,6 +169,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.gitRunStackedAction]: "vcs",
   [WS_METHODS.gitResolvePullRequest]: "git",
   [WS_METHODS.gitPreparePullRequestThread]: "git",
+  [WS_METHODS.gitPrepareBranchThread]: "git",
   [WS_METHODS.vcsListRefs]: "vcs",
   [WS_METHODS.vcsCreateWorktree]: "vcs",
   [WS_METHODS.vcsRemoveWorktree]: "vcs",

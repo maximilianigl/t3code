@@ -1,5 +1,9 @@
 import * as Schema from "effect/Schema";
-import { GitPreparePullRequestThreadInput, GitRunStackedActionInput } from "./git.ts";
+import {
+  GitPrepareBranchThreadInput,
+  GitPreparePullRequestThreadInput,
+  GitRunStackedActionInput,
+} from "./git.ts";
 import {
   AuthAccessWriteScope,
   AuthOrchestrationOperateScope,
@@ -38,6 +42,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.vcsPull]: AuthSourceControlWriteScope,
   [WS_METHODS.gitRunStackedAction]: AuthSourceControlWriteScope,
   [WS_METHODS.gitPreparePullRequestThread]: AuthSourceControlWriteScope,
+  [WS_METHODS.gitPrepareBranchThread]: AuthSourceControlWriteScope,
   [WS_METHODS.vcsCreateWorktree]: AuthSourceControlWriteScope,
   [WS_METHODS.vcsRemoveWorktree]: AuthSourceControlWriteScope,
   [WS_METHODS.vcsCreateRef]: AuthSourceControlWriteScope,
@@ -57,6 +62,7 @@ export type ClientGuardedRpcTag = keyof typeof CLIENT_GUARDED_RPC_SCOPES;
 
 const decodePrepareThread = Schema.decodeUnknownSync(GitPreparePullRequestThreadInput);
 const decodeStackedAction = Schema.decodeUnknownSync(GitRunStackedActionInput);
+const decodePrepareBranchThread = Schema.decodeUnknownSync(GitPrepareBranchThreadInput);
 
 export function clientRpcRequiredScopes(
   method: string,
@@ -74,6 +80,11 @@ export function clientRpcRequiredScopes(
       (payload.action === "create_pr" || payload.action === "commit_push_pr")
     )
       return [AuthSourceControlWriteScope, AuthOrchestrationReadScope];
+  }
+  // A branch worktree prepared for a thread also runs that project's setup script.
+  if (method === WS_METHODS.gitPrepareBranchThread && input !== undefined) {
+    if (decodePrepareBranchThread(input).threadId !== undefined)
+      return [AuthSourceControlWriteScope, AuthOrchestrationOperateScope];
   }
   return Object.hasOwn(CLIENT_GUARDED_RPC_SCOPES, method)
     ? [CLIENT_GUARDED_RPC_SCOPES[method as ClientGuardedRpcTag]]
