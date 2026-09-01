@@ -30,6 +30,15 @@ echo "Deploying t3@$version to $host"
 scp "$tarball" "$host:/tmp/t3-$version.tgz"
 ssh "$host" "VERSION=$version bash -s" <<'EOF'
 set -euo pipefail
+# The desktop app's SSH environments launch their own server via
+# ~/.t3/ssh-launch/<key>/run-t3.sh, which runs `t3` from PATH when present and
+# otherwise falls back to `npx t3@<client version>` — a registry fetch that
+# 404s for fork versions. A global install of the fork tarball keeps that
+# `command -v t3` hook pointing at the fork.
+npm install -g --no-fund --no-audit "/tmp/t3-$VERSION.tgz"
+hash -r 2>/dev/null || true
+echo "global t3: $(command -v t3 || echo '(not on this shell PATH)') -> $(t3 --version 2>/dev/null || true)"
+
 dir="$HOME/.t3/runtime/versions/$VERSION"
 # A previous partial deploy of the same fork version must not survive as a
 # plausible-looking runtime; the sentinel is only written after npm exits 0.
