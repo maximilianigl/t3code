@@ -1336,7 +1336,8 @@ html[data-theme-id] [data-chat-header] [data-slot="separator"] {
 /* Chat code blocks join the other code surfaces on the code tokens. The
    default look keeps its secondary/input tints; themed palettes tint those
    surfaces with the accent, which fights syntax highlighting. */
-html[data-theme-id] .chat-markdown .chat-markdown-codeblock {
+html[data-theme-id] .chat-markdown .chat-markdown-codeblock,
+html[data-theme-id] .chat-markdown .chat-markdown-mermaid {
   background-color: var(--code-background);
   border-color: var(--contrast-border);
   color: var(--code-foreground);
@@ -1351,7 +1352,9 @@ html[data-theme-id] .chat-markdown .chat-markdown-codeblock pre {
   background-color: transparent;
 }
 
-html[data-theme-id] .chat-markdown .chat-markdown-codeblock-header {
+html[data-theme-id] .chat-markdown .chat-markdown-codeblock-header,
+html[data-theme-id] .chat-markdown .chat-markdown-mermaid-header,
+html[data-theme-id] .chat-markdown .chat-markdown-chrome-action {
   color: color-mix(in srgb, var(--code-foreground) 72%, transparent);
 }
 
@@ -1883,7 +1886,9 @@ code {
   background: color-mix(in srgb, var(--contrast-border) 78%, transparent);
 }
 
-.chat-markdown .chat-markdown-codeblock-header {
+.chat-markdown .chat-markdown-codeblock-header,
+.chat-markdown .chat-markdown-mermaid-header,
+.chat-markdown .chat-markdown-chrome-action {
   color: color-mix(in srgb, var(--contrast-foreground) 72%, transparent);
 }
 
@@ -1892,6 +1897,23 @@ code {
   border: none;
   border-radius: 0;
   background: transparent;
+}
+
+.chat-markdown .chat-markdown-mermaid pre {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.chat-markdown .chat-markdown-mermaid-diagram svg {
+  display: block;
+  margin-inline: auto;
+}
+
+.chat-markdown .chat-markdown-mermaid-diagram {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .chat-markdown .chat-markdown-codeblock[data-wrap="true"] pre {
