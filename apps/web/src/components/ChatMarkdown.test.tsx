@@ -603,6 +603,41 @@ describe("ChatMarkdown artifact-template cards", () => {
   });
 });
 
+describe("ChatMarkdown Mermaid diagrams", () => {
+  const diagram = "flowchart LR\n  Browser --> Server";
+
+  it.each(["mermaid", "MerMaid"])("renders a completed %s fence as a diagram", (language) => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text={`\`\`\`${language}\n${diagram}\n\`\`\``} />,
+    );
+
+    expect(html).toContain("chat-markdown-mermaid");
+    expect(html).toContain("Rendering diagram");
+    expect(html).toContain("flowchart LR");
+    expect(html).toContain('data-language="mermaid"');
+    expect(html).toContain("data-markdown-copy=");
+  });
+
+  it("keeps a Mermaid fence as code while the message is streaming", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text={`\`\`\`mermaid\n${diagram}\n\`\`\``} isStreaming />,
+    );
+
+    expect(html).not.toContain("chat-markdown-mermaid");
+    expect(html).toContain("chat-markdown-codeblock");
+    expect(html).toContain('data-language="mermaid"');
+  });
+
+  it("does not treat a similarly named fence as Mermaid", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text={`\`\`\`mermaid-js\n${diagram}\n\`\`\``} />,
+    );
+
+    expect(html).not.toContain("chat-markdown-mermaid");
+    expect(html).toContain("chat-markdown-codeblock");
+  });
+});
+
 describe("shouldUseMarkdownFileBrowserPrimaryAction", () => {
   it("uses the browser when it is the only available primary action", () => {
     expect(

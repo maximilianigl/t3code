@@ -63,7 +63,7 @@ function wrapInlineCode(code: string): string {
   return `${fence}${pad}${code}${pad}${fence}`;
 }
 
-function codeFenceFor(code: string): string {
+export function markdownCodeFenceFor(code: string): string {
   const longestRun = [...(code.match(/`{3,}/g) ?? [])].reduce(
     (max, run) => Math.max(max, run.length),
     0,
@@ -81,7 +81,7 @@ function resolveCodeBlockLanguage(pre: Element): string | null {
 
 function serializeCodeBlock(pre: Element): string {
   const code = (pre.textContent ?? "").replace(/\n$/, "");
-  const fence = codeFenceFor(code);
+  const fence = markdownCodeFenceFor(code);
   return `${fence}${resolveCodeBlockLanguage(pre) ?? ""}\n${code}\n${fence}\n\n`;
 }
 

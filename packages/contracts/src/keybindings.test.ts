@@ -96,6 +96,18 @@ it.effect("parses keybinding rules", () =>
     });
     assert.strictEqual(parsedModelPickerToggle.command, "modelPicker.toggle");
 
+    const parsedTraitsPickerToggle = yield* decode(KeybindingRule, {
+      key: "mod+shift+e",
+      command: "traitsPicker.toggle",
+    });
+    assert.strictEqual(parsedTraitsPickerToggle.command, "traitsPicker.toggle");
+
+    const parsedBranchPickerToggle = yield* decode(KeybindingRule, {
+      key: "mod+shift+b",
+      command: "branchPicker.toggle",
+    });
+    assert.strictEqual(parsedBranchPickerToggle.command, "branchPicker.toggle");
+
     const parsedModelPickerJump = yield* decode(KeybindingRule, {
       key: "mod+1",
       command: "modelPicker.jump.1",

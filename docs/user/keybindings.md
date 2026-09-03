@@ -60,6 +60,11 @@ shortcut; assign one in **Settings → Keybindings**.
 `chat.newLocal` skips that chooser. Both use your
 [new-thread defaults](./thread-sidebar.md#start-a-thread).
 
+`traitsPicker.toggle` opens or closes the active composer's model traits menu,
+including reasoning effort. Its default shortcut is `mod+shift+e`.
+`branchPicker.toggle` opens or closes the active thread's branch picker and
+defaults to `mod+shift+b`. Neither command runs while the terminal has focus.
+
 ## Reserved shortcuts
 
 In the desktop app, `mod+w` closes the focused terminal or the active right-panel

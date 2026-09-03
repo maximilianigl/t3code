@@ -66,6 +66,8 @@ interface BranchToolbarProps {
   onEnvironmentChange?: (environmentId: EnvironmentId) => void;
   composerControlsHostRef?: (element: HTMLDivElement | null) => void;
   contextStripVisible?: boolean;
+  branchPickerOpen?: boolean;
+  onBranchPickerOpenChange?: (open: boolean) => void;
 }
 
 interface MobileRunContextSelectorProps {
@@ -457,6 +459,8 @@ export const BranchToolbar = memo(function BranchToolbar({
   onEnvironmentChange,
   composerControlsHostRef,
   contextStripVisible = true,
+  branchPickerOpen,
+  onBranchPickerOpenChange,
 }: BranchToolbarProps) {
   const threadRef = useMemo(
     () => scopeThreadRef(environmentId, threadId),
@@ -630,6 +634,8 @@ export const BranchToolbar = memo(function BranchToolbar({
           onStartFromOriginChange={onStartFromOriginChange}
           {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
           {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
+          {...(branchPickerOpen !== undefined ? { branchPickerOpen } : {})}
+          {...(onBranchPickerOpenChange ? { onBranchPickerOpenChange } : {})}
         />
       ) : null}
     </ComposerSurface.ContextStrip>

@@ -1592,6 +1592,7 @@ export default function ChatView(props: ChatViewProps) {
     },
     [composerRef],
   );
+  const [isBranchPickerOpen, setIsBranchPickerOpen] = useState(false);
   const [isWorkspaceFileDragActive, setIsWorkspaceFileDragActive] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [expandedImage, setExpandedImage] = useState<ExpandedImagePreview | null>(null);
@@ -5987,6 +5988,7 @@ export default function ChatView(props: ChatViewProps) {
   useEffect(() => {
     setPendingServerThreadEnvMode(null);
     setPendingServerThreadBranch(undefined);
+    setIsBranchPickerOpen(false);
   }, [activeThread?.id]);
 
   useEffect(() => {
@@ -6253,6 +6255,7 @@ export default function ChatView(props: ChatViewProps) {
       if (command === "modelPicker.toggle") {
         event.preventDefault();
         event.stopPropagation();
+        setIsBranchPickerOpen(false);
         composerRef.current?.toggleModelPicker();
         return;
       }
@@ -6264,6 +6267,29 @@ export default function ChatView(props: ChatViewProps) {
         event.stopPropagation();
         if (event.repeat) return;
         void onInterrupt();
+        return;
+      }
+
+      if (command === "traitsPicker.toggle") {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsBranchPickerOpen(false);
+        composerRef.current?.toggleTraitsPicker();
+        return;
+      }
+
+      if (command === "branchPicker.toggle") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!isGitRepo || !showComposerContextStrip) return;
+        const nextOpen = !isBranchPickerOpen;
+        setIsBranchPickerOpen(nextOpen);
+        if (nextOpen && composerRef.current?.isModelPickerOpen()) {
+          composerRef.current.toggleModelPicker();
+        }
+        if (nextOpen && composerRef.current?.isTraitsPickerOpen()) {
+          composerRef.current.toggleTraitsPicker();
+        }
         return;
       }
 
@@ -6301,11 +6327,14 @@ export default function ChatView(props: ChatViewProps) {
     handleUnsettleActiveThread,
     isServerThread,
     onInterrupt,
+    isBranchPickerOpen,
+    isGitRepo,
     onToggleDiff,
     pinThread,
     settleThread,
     supportsPinning,
     supportsSettlement,
+    showComposerContextStrip,
     confirmAndUnpinThread,
     copyActiveThreadReference,
     previewPanelOpen,
@@ -8533,6 +8562,8 @@ export default function ChatView(props: ChatViewProps) {
                                 availableEnvironments={logicalProjectEnvironments}
                                 composerControlsHostRef={setRestingComposerControlsHost}
                                 contextStripVisible={showComposerContextStrip}
+                                branchPickerOpen={isBranchPickerOpen}
+                                onBranchPickerOpenChange={setIsBranchPickerOpen}
                               />
                             </div>
                           )}

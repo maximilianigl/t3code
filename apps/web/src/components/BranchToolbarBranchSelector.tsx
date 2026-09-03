@@ -86,6 +86,8 @@ interface BranchToolbarBranchSelectorProps {
   onStartFromOriginChange: (startFromOrigin: boolean) => void;
   onCheckoutPullRequestRequest?: (reference: string) => void;
   onComposerFocusRequest?: () => void;
+  branchPickerOpen?: boolean;
+  onBranchPickerOpenChange?: (open: boolean) => void;
 }
 
 function toBranchActionErrorMessage(error: unknown): string {
@@ -105,6 +107,8 @@ export function BranchToolbarBranchSelector({
   onStartFromOriginChange,
   onCheckoutPullRequestRequest,
   onComposerFocusRequest,
+  branchPickerOpen,
+  onBranchPickerOpenChange,
 }: BranchToolbarBranchSelectorProps) {
   const startFromOriginSwitchId = useId();
   const stopThreadSession = useAtomCommand(threadEnvironment.stopSession, "thread session stop");
@@ -216,7 +220,16 @@ export function BranchToolbarBranchSelector({
   // ---------------------------------------------------------------------------
   // Git ref queries
   // ---------------------------------------------------------------------------
-  const [isBranchMenuOpen, setIsBranchMenuOpen] = useState(false);
+  const [uncontrolledBranchMenuOpen, setUncontrolledBranchMenuOpen] = useState(false);
+  const isBranchMenuOpen = branchPickerOpen ?? uncontrolledBranchMenuOpen;
+  const branchInputRef = useRef<HTMLInputElement | null>(null);
+  const setBranchMenuOpen = useCallback(
+    (open: boolean) => {
+      setUncontrolledBranchMenuOpen(open);
+      onBranchPickerOpenChange?.(open);
+    },
+    [onBranchPickerOpenChange],
+  );
   const [branchQuery, setBranchQuery] = useState("");
   const deferredBranchQuery = useDeferredValue(branchQuery);
 
@@ -403,7 +416,7 @@ export function BranchToolbarBranchSelector({
 
     if (isSelectingWorktreeBase) {
       setThreadBranch(refName.name, null);
-      setIsBranchMenuOpen(false);
+      setBranchMenuOpen(false);
       onComposerFocusRequest?.();
       return;
     }
@@ -416,7 +429,7 @@ export function BranchToolbarBranchSelector({
 
     if (selectionTarget.reuseExistingWorktree) {
       setThreadBranch(refName.name, selectionTarget.nextWorktreePath);
-      setIsBranchMenuOpen(false);
+      setBranchMenuOpen(false);
       onComposerFocusRequest?.();
       return;
     }
@@ -425,7 +438,7 @@ export function BranchToolbarBranchSelector({
       ? deriveLocalBranchNameFromRemoteRef(refName.name)
       : refName.name;
 
-    setIsBranchMenuOpen(false);
+    setBranchMenuOpen(false);
     onComposerFocusRequest?.();
 
     // A branch without a worktree gets one (reused if the server finds one the
@@ -466,7 +479,7 @@ export function BranchToolbarBranchSelector({
     const name = sanitizeNewRefName(rawName);
     if (!branchCwd || !activeProjectCwd || !name || isBranchActionPending) return;
 
-    setIsBranchMenuOpen(false);
+    setBranchMenuOpen(false);
     onComposerFocusRequest?.();
 
     runBranchAction(async () => {
@@ -555,13 +568,16 @@ export function BranchToolbarBranchSelector({
   // ---------------------------------------------------------------------------
   const branchListScrollElementRef = useRef<HTMLElement | null>(null);
   const previousBranchListScrollTopRef = useRef<number | null>(null);
-  const handleOpenChange = useCallback((open: boolean) => {
-    previousBranchListScrollTopRef.current = null;
-    setIsBranchMenuOpen(open);
-    if (!open) {
-      setBranchQuery("");
-    }
-  }, []);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      previousBranchListScrollTopRef.current = null;
+      setBranchMenuOpen(open);
+      if (!open) {
+        setBranchQuery("");
+      }
+    },
+    [setBranchMenuOpen],
+  );
 
   const [showTopBranchScrollFade, setShowTopBranchScrollFade] = useState(false);
   const [showBottomBranchScrollFade, setShowBottomBranchScrollFade] = useState(false);
@@ -610,10 +626,15 @@ export function BranchToolbarBranchSelector({
   }, []);
 
   useLayoutEffect(() => {
+    if (isBranchMenuOpen) {
+      branchInputRef.current?.focus();
+    }
+  }, [isBranchMenuOpen]);
+
+  useLayoutEffect(() => {
     if (!isBranchMenuOpen) {
       return;
     }
-
     setShowTopBranchScrollFade(false);
     setShowBottomBranchScrollFade(filteredBranchPickerItems.length > 8);
     let nestedFrame = 0;
@@ -693,7 +714,7 @@ export function BranchToolbarBranchSelector({
             if (!prReference || !onCheckoutPullRequestRequest) {
               return;
             }
-            setIsBranchMenuOpen(false);
+            setBranchMenuOpen(false);
             setBranchQuery("");
             onComposerFocusRequest?.();
             onCheckoutPullRequestRequest(prReference);
@@ -835,6 +856,7 @@ export function BranchToolbarBranchSelector({
               className="pointer-events-none absolute top-1.5 left-0 size-4 shrink-0 text-muted-foreground/55"
             />
             <ComboboxInput
+              ref={branchInputRef}
               className="[&_input]:h-6.5 [&_input]:ps-5 [&_input]:font-sans [&_input]:leading-6.5"
               inputClassName="rounded-none bg-transparent text-sm"
               placeholder="Search refs..."

@@ -282,6 +282,8 @@ export interface TraitsMenuContentProps {
   triggerVariant?: VariantProps<typeof buttonVariants>["variant"];
   triggerClassName?: string;
   isComposerOwned?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
@@ -551,13 +553,23 @@ export const TraitsPicker = memo(function TraitsPicker({
   isComposerOwned,
   size = "sm",
   hidden = false,
+  open,
+  onOpenChange,
   ...persistence
 }: TraitsMenuContentProps &
   TraitsPersistence & {
     size?: ComposerControlSize;
     hidden?: boolean;
   }) {
-  const [isMenuOpen, setIsMenuOpen] = useComposerMenuState(hidden);
+  const [uncontrolledOpen, setUncontrolledOpen] = useComposerMenuState(hidden);
+  const isMenuOpen = (open ?? uncontrolledOpen) && !hidden;
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setUncontrolledOpen(nextOpen);
+      onOpenChange?.(nextOpen);
+    },
+    [onOpenChange],
+  );
   const { descriptors, primarySelectDescriptor, ultrathinkPromptControlled } =
     getTraitsSectionVisibility({
       provider,
@@ -609,12 +621,7 @@ export const TraitsPicker = memo(function TraitsPicker({
   const isCodexStyle = provider === "codex";
 
   return (
-    <Menu
-      open={isMenuOpen}
-      onOpenChange={(open) => {
-        setIsMenuOpen(open);
-      }}
-    >
+    <Menu open={isMenuOpen} onOpenChange={handleOpenChange}>
       <MenuTrigger
         render={
           <ComposerControl

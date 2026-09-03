@@ -97,6 +97,7 @@ import { MediaActions, type MediaActionSource } from "./media/MediaActions";
 import { resolveProtocolRelativeMediaUrl } from "./media/mediaContent";
 import { CHAT_FILE_TAG_CHIP_CLASS_NAME, FileTagChipContent } from "./chat/FileTagChip";
 import { PierreEntryIcon } from "./chat/PierreEntryIcon";
+import { MermaidDiagram } from "./chat/MermaidDiagram";
 import {
   revealInFileExplorerLabelForKind,
   revealInFileExplorerLabelForOs,
@@ -2290,8 +2291,9 @@ function useChatMarkdownState({
         ...(lineBreaks ? [remarkBreaks] : []),
         remarkPreserveCodeMeta,
         remarkNormalizeLinksAndTagInlineCode,
+        ...extraRemarkPlugins,
       ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>,
-    [lineBreaks, text],
+    [extraRemarkPlugins, lineBreaks, text],
   );
   const markdownFileLinkMetaByHref = useMemo(() => {
     const metaByHref = new Map<
@@ -3087,6 +3089,9 @@ const CHAT_MARKDOWN_COMPONENTS = {
 
     const language = extractFenceLanguage(codeBlock.className);
     const fenceTitle = extractFenceTitle(extractPreCodeMeta(node));
+    if (language.toLowerCase() === "mermaid" && !isStreaming) {
+      return <MermaidDiagram appearance={resolvedTheme} source={codeBlock.code} />;
+    }
     return (
       <MarkdownCodeBlock
         code={codeBlock.code}
@@ -3135,7 +3140,6 @@ function ChatMarkdown({
     ],
     [extraRemarkPlugins, lineBreaks],
   );
-
   // react-markdown converts unparsed HTML nodes to text when skipHtml is false.
   // Keep that behavior explicit because literal mode depends on escaping the
   // complete source token instead of dropping it from the rendered message.

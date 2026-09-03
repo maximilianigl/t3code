@@ -1196,6 +1196,8 @@ export interface ChatComposerHandle {
   openModelPicker: () => void;
   toggleModelPicker: () => void;
   isModelPickerOpen: () => boolean;
+  toggleTraitsPicker: () => void;
+  isTraitsPickerOpen: () => boolean;
   compactContext: () => void;
   readSnapshot: () => {
     value: string;
@@ -1937,6 +1939,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const [isComposerFooterCompact, setIsComposerFooterCompact] = useState(false);
   const [isComposerPrimaryActionsCompact, setIsComposerPrimaryActionsCompact] = useState(false);
   const [isComposerModelPickerOpen, setIsComposerModelPickerOpen] = useState(false);
+  const [isComposerTraitsPickerOpen, setIsComposerTraitsPickerOpen] = useState(false);
   const isMobileViewport = useMediaQuery("max-sm");
   const {
     isComposerFocused,
@@ -2258,6 +2261,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onPromptChange: setPromptFromTraits,
     planModeEnabled: settings.planModeEnabled,
   });
+  const hasProviderTraits = providerTraitsMenuContent !== null;
   const providerTraitsPickerInput = {
     provider: selectedProvider,
     instanceId: selectedInstanceId,
@@ -2270,6 +2274,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onPromptChange: setPromptFromTraits,
     planModeEnabled: settings.planModeEnabled,
     isComposerOwned: true,
+    open: isComposerTraitsPickerOpen,
+    onOpenChange: (open: boolean) => {
+      setIsComposerTraitsPickerOpen(open);
+      if (open) setIsComposerModelPickerOpen(false);
+    },
   } satisfies Parameters<typeof renderProviderTraitsPicker>[0];
   const providerTraitsPicker = renderProviderTraitsPicker(providerTraitsPickerInput);
   const {
@@ -4184,7 +4193,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               ),
             }
           : {})}
-        onOpenChange={setIsComposerModelPickerOpen}
+        onOpenChange={(open) => {
+          setIsComposerModelPickerOpen(open);
+          if (open) setIsComposerTraitsPickerOpen(false);
+        }}
         getModelDisabledReason={getModelDisabledReason}
         onInstanceModelChange={onProviderModelSelect}
         onOpenProviderSetup={onOpenProviderSetup}
@@ -4196,6 +4208,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           runtimeMode={runtimeMode}
           showInteractionModeToggle={planModeUiEnabled}
           traitsMenuContent={providerTraitsMenuContent}
+          open={isComposerTraitsPickerOpen}
+          onOpenChange={(open) => {
+            setIsComposerTraitsPickerOpen(open);
+            if (open) setIsComposerModelPickerOpen(false);
+          }}
           onToggleInteractionMode={toggleInteractionMode}
           onRuntimeModeChange={handleRuntimeModeChange}
         />
@@ -4242,6 +4259,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 traitsMenuContent={
                   hiddenRestingBlockIds.includes("traits") ? providerTraitsMenuContent : undefined
                 }
+                open={isComposerTraitsPickerOpen}
+                onOpenChange={(open) => {
+                  setIsComposerTraitsPickerOpen(open);
+                  if (open) setIsComposerModelPickerOpen(false);
+                }}
                 onToggleInteractionMode={toggleInteractionMode}
                 onRuntimeModeChange={handleRuntimeModeChange}
               />
@@ -4735,6 +4757,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       setIsComposerScrollCollapsed(false);
       setIsComposerFocused(true);
     }
+    setIsComposerTraitsPickerOpen(false);
     setIsComposerModelPickerOpen(true);
   }, [composerControlsHidden, setIsComposerFocused, setIsComposerScrollCollapsed]);
 
@@ -4785,6 +4808,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       },
       compactContext: compactThreadContext,
       isModelPickerOpen: () => isComposerModelPickerOpen,
+      toggleTraitsPicker: () => {
+        if (!hasProviderTraits) return;
+        const nextOpen = !isComposerTraitsPickerOpen;
+        setIsComposerTraitsPickerOpen(nextOpen);
+        if (nextOpen) setIsComposerModelPickerOpen(false);
+      },
+      isTraitsPickerOpen: () => isComposerTraitsPickerOpen,
       readSnapshot: () => {
         return readComposerSnapshot();
       },
@@ -4895,6 +4925,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       applyPromptReplacement,
       isComposerModelPickerOpen,
       openModelPicker,
+      isComposerTraitsPickerOpen,
       readComposerSnapshot,
       selectedModel,
       selectedModelOptionsForDispatch,
@@ -4911,6 +4942,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       getTimelineScrollableNode,
       isTimelineAtLogicalEnd,
       setIsComposerScrollCollapsed,
+      hasProviderTraits,
     ],
   );
 

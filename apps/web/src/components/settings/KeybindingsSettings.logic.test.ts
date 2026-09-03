@@ -203,10 +203,12 @@ describe("KeybindingsSettings.logic", () => {
 
     expect(options).toEqual(
       expect.arrayContaining([
+        "branchPicker.toggle",
         "chat.new",
         "rightPanel.toggleMaximized",
         "thread.stop",
         "script.setup-db.run",
+        "traitsPicker.toggle",
       ]),
     );
     expect(DEFAULT_RESOLVED_KEYBINDINGS.some((binding) => binding.command === "thread.stop")).toBe(
