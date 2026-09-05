@@ -1593,6 +1593,7 @@ export default function ChatView(props: ChatViewProps) {
     [composerRef],
   );
   const [isBranchPickerOpen, setIsBranchPickerOpen] = useState(false);
+  const [renameThreadRequestId, setRenameThreadRequestId] = useState(0);
   const [isWorkspaceFileDragActive, setIsWorkspaceFileDragActive] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [expandedImage, setExpandedImage] = useState<ExpandedImagePreview | null>(null);
@@ -6109,6 +6110,15 @@ export default function ChatView(props: ChatViewProps) {
       });
       if (!command) return;
 
+      if (command === "thread.rename") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (isServerThread && !event.repeat) {
+          setRenameThreadRequestId((requestId) => requestId + 1);
+        }
+        return;
+      }
+
       if (command === "thread.copyReference") {
         event.preventDefault();
         event.stopPropagation();
@@ -8218,6 +8228,7 @@ export default function ChatView(props: ChatViewProps) {
             activeThreadTitle={activeThread.title}
             isServerThread={isServerThread}
             activeProject={activeProject}
+            renameRequestId={renameThreadRequestId}
             openInCwd={gitCwd}
             activeProjectScripts={activeProjectScripts}
             preferredScriptId={

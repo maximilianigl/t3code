@@ -60,6 +60,9 @@ shortcut; assign one in **Settings → Keybindings**.
 `chat.newLocal` skips that chooser. Both use your
 [new-thread defaults](./thread-sidebar.md#start-a-thread).
 
+`thread.rename` starts editing the active thread's title. Its default shortcut
+is `mod+shift+r`, and it does not run while the terminal has focus.
+
 `traitsPicker.toggle` opens or closes the active composer's model traits menu,
 including reasoning effort. Its default shortcut is `mod+shift+e`.
 `branchPicker.toggle` opens or closes the active thread's branch picker and

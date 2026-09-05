@@ -56,6 +56,7 @@ interface ChatHeaderProps {
   /** Drafts have no server thread yet, so the title carries no action menu. */
   isServerThread: boolean;
   activeProject: EnvironmentProject | null;
+  renameRequestId: number;
   openInCwd: string | null;
   activeProjectScripts: ReadonlyArray<ProjectScript> | undefined;
   preferredScriptId: string | null;
@@ -125,6 +126,7 @@ export const ChatHeader = memo(function ChatHeader({
   activeThreadTitle,
   isServerThread,
   activeProject,
+  renameRequestId,
   openInCwd,
   activeProjectScripts,
   preferredScriptId,
@@ -189,6 +191,12 @@ export const ChatHeader = memo(function ChatHeader({
     renameCommittedRef.current = false;
     setRenaming({ threadId: activeThreadId, title: activeThreadTitle });
   }, [activeThreadId, activeThreadTitle]);
+  const handledRenameRequestIdRef = useRef(renameRequestId);
+  useEffect(() => {
+    if (handledRenameRequestIdRef.current === renameRequestId) return;
+    handledRenameRequestIdRef.current = renameRequestId;
+    if (isServerThread) startRename();
+  }, [isServerThread, renameRequestId, startRename]);
   const commitRename = useCallback(
     (title: string) => {
       setRenaming(null);
