@@ -117,7 +117,9 @@ describe("searchSettings", () => {
 
   it("hides desktop-only settings from browser search", () => {
     expect(SETTINGS_SEARCH_ITEMS.some((item) => item.id === "quit-confirmation")).toBe(true);
+    expect(SETTINGS_SEARCH_ITEMS.some((item) => item.id === "desktop-notifications")).toBe(true);
     expect(searchSettings("hold to quit")).toEqual([]);
+    expect(searchSettings("desktop notifications")).toEqual([]);
     expect(searchSettings("wsl")).toEqual([]);
   });
 

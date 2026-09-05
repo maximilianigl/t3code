@@ -583,6 +583,10 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete
         ? ["Delete confirmation"]
         : []),
+      ...(settings.desktopNotificationsEnabled !==
+      DEFAULT_UNIFIED_SETTINGS.desktopNotificationsEnabled
+        ? ["Desktop notifications"]
+        : []),
       ...(settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit ? ["Quit shortcut"] : []),
       ...(isTextGenerationModelDirty ? ["Text generation model"] : []),
       ...getChangedBrowserSettingLabels(settings),
@@ -603,6 +607,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.diffColorScheme,
       settings.enableAgentBrowserAccess,
       settings.confirmQuit,
+      settings.desktopNotificationsEnabled,
       settings.confirmThreadArchive,
       settings.confirmThreadDelete,
       settings.confirmThreadUnpin,
@@ -734,6 +739,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
       confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
       confirmThreadUnpin: DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin,
+      desktopNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.desktopNotificationsEnabled,
       confirmQuit: DEFAULT_UNIFIED_SETTINGS.confirmQuit,
       textGenerationModelSelection: DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
       fontFamilySans: DEFAULT_UNIFIED_SETTINGS.fontFamilySans,
@@ -2723,45 +2729,75 @@ export function GeneralSettingsPanel() {
         />
 
         {isElectron ? (
-          <SettingsRow
-            {...searchableSetting("quit-confirmation")}
-            description="Hold mode also quits on two quick presses."
-            resetAction={
-              settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit ? (
-                <SettingResetButton
-                  label="quit shortcut behavior"
-                  onClick={() =>
-                    updateSettings({ confirmQuit: DEFAULT_UNIFIED_SETTINGS.confirmQuit })
+          <>
+            <SettingsRow
+              {...searchableSetting("desktop-notifications")}
+              description="Notify you when an agent finishes, fails, needs approval, or needs input while T3 Code is in the background."
+              resetAction={
+                settings.desktopNotificationsEnabled !==
+                DEFAULT_UNIFIED_SETTINGS.desktopNotificationsEnabled ? (
+                  <SettingResetButton
+                    label="desktop notifications"
+                    onClick={() =>
+                      updateSettings({
+                        desktopNotificationsEnabled:
+                          DEFAULT_UNIFIED_SETTINGS.desktopNotificationsEnabled,
+                      })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <Switch
+                  checked={settings.desktopNotificationsEnabled}
+                  onCheckedChange={(checked) =>
+                    updateSettings({ desktopNotificationsEnabled: Boolean(checked) })
                   }
+                  aria-label="Desktop notifications"
                 />
-              ) : null
-            }
-            control={
-              <Select
-                value={settings.confirmQuit}
-                onValueChange={(value) => {
-                  if (value === "direct" || value === "hold" || value === "double-click") {
-                    updateSettings({ confirmQuit: value });
-                  }
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="w-full sm:w-40"
-                  aria-label="Quit shortcut behavior"
+              }
+            />
+
+            <SettingsRow
+              {...searchableSetting("quit-confirmation")}
+              description="Hold mode also quits on two quick presses."
+              resetAction={
+                settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit ? (
+                  <SettingResetButton
+                    label="quit shortcut behavior"
+                    onClick={() =>
+                      updateSettings({ confirmQuit: DEFAULT_UNIFIED_SETTINGS.confirmQuit })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <Select
+                  value={settings.confirmQuit}
+                  onValueChange={(value) => {
+                    if (value === "direct" || value === "hold" || value === "double-click") {
+                      updateSettings({ confirmQuit: value });
+                    }
+                  }}
                 >
-                  <SelectValue>{QUIT_CONFIRMATION_MODE_LABELS[settings.confirmQuit]}</SelectValue>
-                </SelectTrigger>
-                <SelectPopup align="end" alignItemWithTrigger={false}>
-                  {Object.entries(QUIT_CONFIRMATION_MODE_LABELS).map(([value, label]) => (
-                    <SelectItem hideIndicator key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectPopup>
-              </Select>
-            }
-          />
+                  <SelectTrigger
+                    size="sm"
+                    className="w-full sm:w-40"
+                    aria-label="Quit shortcut behavior"
+                  >
+                    <SelectValue>{QUIT_CONFIRMATION_MODE_LABELS[settings.confirmQuit]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectPopup align="end" alignItemWithTrigger={false}>
+                    {Object.entries(QUIT_CONFIRMATION_MODE_LABELS).map(([value, label]) => (
+                      <SelectItem hideIndicator key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              }
+            />
+          </>
         ) : null}
       </SettingsSection>
 

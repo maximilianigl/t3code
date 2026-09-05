@@ -302,6 +302,15 @@ describe("ClientSettings quit confirmation", () => {
   });
 });
 
+describe("ClientSettings desktop notifications", () => {
+  it("defaults to enabled and accepts client-local updates", () => {
+    expect(decodeClientSettings({}).desktopNotificationsEnabled).toBe(true);
+    expect(
+      decodeClientSettingsPatch({ desktopNotificationsEnabled: false }).desktopNotificationsEnabled,
+    ).toBe(false);
+  });
+});
+
 describe("ClientSettings browser recording frame rate", () => {
   it("defaults to 30 fps", () => {
     expect(decodeClientSettings({}).browserRecordingFrameRate).toBe(30);

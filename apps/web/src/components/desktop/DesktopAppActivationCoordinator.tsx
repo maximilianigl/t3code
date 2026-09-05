@@ -1,12 +1,18 @@
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { DesktopAppActivationRequest } from "@t3tools/contracts";
+import { useRouter } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useRef } from "react";
 
 import { handleDesktopAppActivationRequest } from "../../desktopAppActivation";
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
 import { findProjectByPath, inferProjectTitleFromPath } from "../../lib/projectPaths";
 import { newProjectId } from "../../lib/utils";
-import { readProjects, waitForProject } from "../../state/entities";
+import {
+  readProjects,
+  readThreadShell,
+  setActiveEnvironmentId,
+  waitForProject,
+} from "../../state/entities";
 import { usePrimaryEnvironment } from "../../state/environments";
 import { projectEnvironment } from "../../state/projects";
 import { useEnvironmentQuery } from "../../state/query";
@@ -14,6 +20,7 @@ import { environmentShell } from "../../state/shell";
 import { useAtomCommand } from "../../state/use-atom-command";
 
 export function DesktopAppActivationCoordinator() {
+  const router = useRouter();
   const primaryEnvironment = usePrimaryEnvironment();
   const createProject = useAtomCommand(projectEnvironment.create, { reportFailure: false });
   const openThread = useNewThreadHandler();
@@ -32,6 +39,27 @@ export function DesktopAppActivationCoordinator() {
 
   const processRequest = useEffectEvent(async (request: DesktopAppActivationRequest) =>
     handleDesktopAppActivationRequest(request, {
+      findThread: (environmentId, threadId) => readThreadShell({ environmentId, threadId }),
+      openExistingThread: async ({ environmentId, threadId }) => {
+        const location = {
+          to: "/$environmentId/$threadId" as const,
+          params: { environmentId, threadId },
+        };
+        if (
+          router.matchRoute(location, {
+            pending: false,
+            includeSearch: false,
+          }) !== false
+        ) {
+          return;
+        }
+
+        setActiveEnvironmentId(environmentId);
+        // Native notification clicks do not get the intent preload that links do. Load the
+        // route first so an external activation cannot hide an open popup under Suspense.
+        await router.preloadRoute(location);
+        await router.navigate(location);
+      },
       getTarget: () => {
         if (
           primaryEnvironment?.connection.phase !== "connected" ||
