@@ -50,6 +50,7 @@ interface ChatHeaderProps {
   activeProject: EnvironmentProject | null;
   parentThreadLink: { threadId: ThreadId; title: string } | null;
   onOpenThread: (threadId: ThreadId) => void;
+  renameRequestId: number;
   rightPanelOpen: boolean;
   onNewThreadInProject: () => void;
   onOpenProjectSettings?: (() => void) | undefined;
@@ -75,6 +76,7 @@ export const ChatHeader = memo(function ChatHeader({
   activeProject,
   parentThreadLink,
   onOpenThread,
+  renameRequestId,
   rightPanelOpen,
   onNewThreadInProject,
   onOpenProjectSettings,
@@ -166,6 +168,15 @@ export const ChatHeader = memo(function ChatHeader({
       title: activeThreadTitle,
     });
   };
+  const handledRenameRequestIdRef = useRef(renameRequestId);
+  useEffect(() => {
+    if (handledRenameRequestIdRef.current === renameRequestId) return;
+    handledRenameRequestIdRef.current = renameRequestId;
+    startRename();
+  }, [
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Only a new shortcut request starts a rename.
+    renameRequestId,
+  ]);
   const commitRename = (title: string) => {
     setRenaming(null);
     if (!readEnvironmentScope(activeThreadEnvironmentId, AuthOrchestrationOperateScope)) return;

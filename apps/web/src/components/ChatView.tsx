@@ -622,6 +622,7 @@ export default function ChatView(props: ChatViewProps) {
     return inserted;
   };
   const citeAssistantTextStable = useStableCallback(citeAssistantText);
+  const [renameThreadRequestId, setRenameThreadRequestId] = useState(0);
   const [isWorkspaceFileDragActive, setIsWorkspaceFileDragActive] = useState(false);
   const [optimisticUserMessages, setOptimisticUserMessages] = useState<ChatMessage[]>([]);
   // Draft ids survive promotion and expire on navigation, keeping the pending resend scoped correctly.
@@ -2698,6 +2699,10 @@ export default function ChatView(props: ChatViewProps) {
       ...terminalShortcuts,
       ...rightPanelShortcuts,
       ...threadLifecycleShortcuts,
+      "thread.rename": ({ event }) => {
+        if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
+        if (isServerThread && !event.repeat) setRenameThreadRequestId((requestId) => requestId + 1);
+      },
       "thread.copyReference": ({ event }) => {
         if (!event.repeat) copyActiveThreadReference();
       },
@@ -3217,6 +3222,7 @@ export default function ChatView(props: ChatViewProps) {
             parentThreadLink={parentThreadLink}
             onOpenThread={onOpenRelatedThreadStable}
             rightPanelOpen={inlineRightPanelOwnsTitleBar}
+            renameRequestId={renameThreadRequestId}
             onNewThreadInProject={handleNewThreadInActiveProjectStable}
             {...(activeDraftLogicalProjectKey
               ? { onOpenProjectSettings: handleOpenDraftProjectSettingsStable }
