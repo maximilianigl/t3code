@@ -403,6 +403,67 @@ describe("ClaudeAdapterLive", () => {
     );
   });
 
+  it.effect(
+    "keeps default permission mode for full-access when bypass is disabled in settings",
+    () => {
+      const harness = makeHarness({ claudeConfig: { fullAccessWithoutBypass: true } });
+      return Effect.gen(function* () {
+        const adapter = yield* ClaudeAdapter;
+        const session = yield* adapter.startSession({
+          threadId: THREAD_ID,
+          provider: ProviderDriverKind.make("claudeAgent"),
+          runtimeMode: "full-access",
+        });
+
+        const createInput = harness.getLastCreateQueryInput();
+        assert.equal(createInput?.options.permissionMode, undefined);
+        assert.equal(createInput?.options.allowDangerouslySkipPermissions, undefined);
+
+        // The SDK now consults canUseTool for anything not covered by a
+        // permission rule, so T3 Code must answer without opening a request.
+        yield* adapter.sendTurn({
+          threadId: session.threadId,
+          input: "run it",
+          attachments: [],
+        });
+        const canUseTool = createInput?.options.canUseTool;
+        assert.equal(typeof canUseTool, "function");
+        if (!canUseTool) {
+          return;
+        }
+        const result = yield* Effect.promise(() =>
+          canUseTool(
+            "Bash",
+            { command: "pwd" },
+            { signal: new AbortController().signal, toolUseID: "tool-use-bypass-off" },
+          ),
+        );
+        assert.deepEqual(result, { behavior: "allow", updatedInput: { command: "pwd" } });
+      }).pipe(
+        Effect.provideService(Random.Random, makeDeterministicRandomService()),
+        Effect.provide(harness.layer),
+      );
+    },
+  );
+
+  it.effect("leaves non-full-access permission modes alone when bypass is disabled", () => {
+    const harness = makeHarness({ claudeConfig: { fullAccessWithoutBypass: true } });
+    return Effect.gen(function* () {
+      const adapter = yield* ClaudeAdapter;
+      yield* adapter.startSession({
+        threadId: THREAD_ID,
+        provider: ProviderDriverKind.make("claudeAgent"),
+        runtimeMode: "auto",
+      });
+
+      const createInput = harness.getLastCreateQueryInput();
+      assert.equal(createInput?.options.permissionMode, "auto");
+    }).pipe(
+      Effect.provideService(Random.Random, makeDeterministicRandomService()),
+      Effect.provide(harness.layer),
+    );
+  });
+
   it.effect("derives auto permission mode from auto runtime policy without skip flag", () => {
     const harness = makeHarness();
     return Effect.gen(function* () {

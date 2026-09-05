@@ -647,9 +647,21 @@ export const ClaudeSettings = makeProviderSettingsSchema(
         },
       }),
     ),
+    // Full access normally launches Claude in bypassPermissions mode. A managed
+    // Claude policy can forbid that mode, so this keeps Claude's default mode and
+    // lets T3 Code's approval callback allow every tool request instead.
+    fullAccessWithoutBypass: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false)),
+      Schema.annotateKey({
+        title: "Full access without bypass mode",
+        description:
+          "In Full access, keep Claude's normal permission mode and let T3 Code approve every tool request. Use when a managed policy disables bypass mode. Deny rules still apply.",
+        providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
+      }),
+    ),
   },
   {
-    order: ["binaryPath", "homePath", "autoCompactWindow", "launchArgs"],
+    order: ["binaryPath", "homePath", "autoCompactWindow", "fullAccessWithoutBypass", "launchArgs"],
   },
 );
 export type ClaudeSettings = typeof ClaudeSettings.Type;
@@ -1193,6 +1205,7 @@ const ClaudeSettingsPatch = Schema.Struct({
   autoCompactWindow: Schema.optionalKey(
     TrimmedString.check(Schema.isPattern(CLAUDE_AUTO_COMPACT_WINDOW_PATTERN)),
   ),
+  fullAccessWithoutBypass: Schema.optionalKey(Schema.Boolean),
 });
 
 const CursorSettingsPatch = Schema.Struct({
