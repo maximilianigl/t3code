@@ -124,6 +124,9 @@ through the pages you have visited, like a browser's back and forward buttons.
 `chat.newLocal` skips that chooser. Both use your
 [new-thread defaults](./thread-sidebar.md#start-a-thread).
 
+`thread.rename` starts editing the active thread's title. Its default shortcut
+is `mod+shift+r`, and it does not run while the terminal has focus.
+
 ## Reserved shortcuts
 
 In the desktop app, `mod+w` closes the focused terminal or the active right-panel

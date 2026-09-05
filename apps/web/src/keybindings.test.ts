@@ -151,6 +151,11 @@ const DEFAULT_BINDINGS = compile([
   { shortcut: modShortcut("[", { shiftKey: true }), command: "thread.previous" },
   { shortcut: modShortcut("]", { shiftKey: true }), command: "thread.next" },
   {
+    shortcut: modShortcut("r", { shiftKey: true }),
+    command: "thread.rename",
+    whenAst: whenNot(whenIdentifier("terminalFocus")),
+  },
+  {
     shortcut: modShortcut("c", { shiftKey: true }),
     command: "thread.copyReference",
     whenAst: whenNot(whenIdentifier("terminalFocus")),
@@ -247,6 +252,27 @@ describe("thread undo shortcut", () => {
     assert.isNull(
       resolveShortcutCommand(event({ key: "z", ctrlKey: true }), DEFAULT_RESOLVED_KEYBINDINGS, {
         platform: "Win32",
+        context: { terminalFocus: true },
+      }),
+    );
+  });
+});
+
+describe("rename thread shortcut", () => {
+  it("resolves Cmd+Shift+R outside the terminal", () => {
+    assert.equal(
+      resolveShortcutCommand(event({ key: "r", metaKey: true, shiftKey: true }), DEFAULT_BINDINGS, {
+        platform: "MacIntel",
+        context: { terminalFocus: false },
+      }),
+      "thread.rename",
+    );
+  });
+
+  it("does not intercept terminal refresh", () => {
+    assert.isNull(
+      resolveShortcutCommand(event({ key: "r", ctrlKey: true, shiftKey: true }), DEFAULT_BINDINGS, {
+        platform: "Linux",
         context: { terminalFocus: true },
       }),
     );
