@@ -83,6 +83,20 @@ The most common defect in this repo is a change that works on the path you teste
 - The web app requires pairing. Hand over the pairing URL, not the bare origin. A URL without its token is useless to whoever you gave it to. If the token got consumed, mint a fresh one with `node apps/server/src/bin.ts pair` — note it carries standard scopes, while the startup URL carries admin scopes (needed for Settings → Connections management).
 - Stop what you started, by the PID you tracked. See rule 1.
 
+## Updating the remote fork server
+
+Use this sequence when updating `ssh ws` to the newest upstream T3 plus this fork's changes:
+
+1. Commit the local work, fetch upstream, and rebase the fork branch onto `upstream/main`. Resolve and verify the rebase before building.
+2. Give the fork a fresh `-migl.N` version in the server, desktop, web, and contracts package manifests.
+3. Build and package the server with `vp run --filter t3 build` followed by `node scripts/pack-fork-server.mjs`.
+4. Run `scripts/deploy-fork-server.sh ws`. This installs the fork globally for Desktop SSH launches, seeds the versioned runtime, and updates the `t3code.service` user unit.
+5. Verify `t3 --version`, `systemctl --user status t3code.service`, and `~/.t3/userdata/server-runtime.json` all identify the new runtime.
+
+The update is not complete until exactly one T3 server uses `/home/migl/.t3`. Check listeners with `ss -H -ltnp` and inspect candidate servers with `ps -eo pid=,ppid=,args= | rg 't3.+serve'`. The surviving PID and port must match `server-runtime.json` and the `t3code.service` cgroup. A Desktop SSH-managed server may survive the service update and keep Codex writer locks even after the desktop switches to the systemd service.
+
+If an old server remains, resolve its listener PID first, then inspect `/proc/<pid>/cmdline`, `/proc/<pid>/cwd`, `/proc/<pid>/cgroup`, and its parent and child PIDs. Stop only that verified process tree, following the killing rule above. A successful signal is not proof of exit: wait for the PID and its children to disappear, confirm the old port is closed, and recheck that `t3code.service` is active. Do not treat worktree-local dev servers as stale instances of the live server.
+
 ## Test data
 
 An empty database is a bad test. Seed your worktree's `.t3` with a copy of real data instead of pointing at live state:
