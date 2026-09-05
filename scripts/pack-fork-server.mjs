@@ -7,18 +7,20 @@
 // minus the publish.
 //
 // Usage: node scripts/pack-fork-server.mjs   (after `vp run --filter t3 build`)
-import { readFileSync, writeFileSync } from "node:fs";
-import { execSync } from "node:child_process";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { parse } from "yaml";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeModule from "node:module";
+import * as NodePath from "node:path";
+import * as NodeURL from "node:url";
 import { resolveCatalogDependencies } from "./lib/resolve-catalog.ts";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const pkgPath = join(repoRoot, "apps/server/package.json");
-const original = readFileSync(pkgPath, "utf8");
+const repoRoot = NodePath.join(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
+const pkgPath = NodePath.join(repoRoot, "apps/server/package.json");
+const serverRequire = NodeModule.createRequire(pkgPath);
+const { parse } = serverRequire("yaml");
+const original = NodeFS.readFileSync(pkgPath, "utf8");
 const pkg = JSON.parse(original);
-const ws = parse(readFileSync(join(repoRoot, "pnpm-workspace.yaml"), "utf8"));
+const ws = parse(NodeFS.readFileSync(NodePath.join(repoRoot, "pnpm-workspace.yaml"), "utf8"));
 const catalog = ws.catalog ?? {};
 const manifest = {
   name: pkg.name,
@@ -34,12 +36,12 @@ const manifest = {
   // (only the root project's apply), so the tarball loses nothing without them.
 };
 try {
-  writeFileSync(pkgPath, JSON.stringify(manifest, null, 2) + "\n");
-  execSync("npm pack --pack-destination ../../release", {
-    cwd: join(repoRoot, "apps/server"),
+  NodeFS.writeFileSync(pkgPath, JSON.stringify(manifest, null, 2) + "\n");
+  NodeChildProcess.execSync("npm pack --pack-destination ../../release", {
+    cwd: NodePath.join(repoRoot, "apps/server"),
     stdio: "inherit",
   });
 } finally {
-  writeFileSync(pkgPath, original);
+  NodeFS.writeFileSync(pkgPath, original);
 }
 console.log(`packed release/t3-${pkg.version}.tgz`);
