@@ -2546,6 +2546,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       reportedModelSelection={reportedModelSelection}
       promptUltrathink={promptUltrathink}
       onPromptEdit={editPromptFromTraitsStable}
+      onTraitsSelectionComplete={scheduleComposerFocus}
       planModeEnabled={settings.planModeEnabled}
       planModeUiEnabled={planModeUiEnabled}
       interactionMode={interactionMode}

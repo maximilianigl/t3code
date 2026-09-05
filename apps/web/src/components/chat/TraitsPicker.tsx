@@ -322,6 +322,7 @@ export interface TraitsMenuContentProps {
   planModeEnabled: boolean;
   triggerClassName?: string;
   isComposerOwned?: boolean;
+  onSelectionComplete?: () => void;
 }
 
 export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
@@ -335,6 +336,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
   reportedModelSelection,
   allowPromptInjectedEffort = true,
   planModeEnabled,
+  onSelectionComplete,
   ...persistence
 }: TraitsMenuContentProps & TraitsPersistence) {
   const modelSelection =
@@ -389,6 +391,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
       (prompt) => getTraitSelectChange(selected, descriptor, prompt, value)?.prompt ?? prompt,
     );
     if ("modelOptions" in change) updateModelOptions(change.modelOptions);
+    onSelectionComplete?.();
   };
 
   if (!hasAnyControls) {
@@ -488,6 +491,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
                   updateDescriptors(
                     replaceDescriptorCurrentValue(descriptors, descriptor.id, value === "on"),
                   );
+                  onSelectionComplete?.();
                 }}
               >
                 {(["on", "off"] as const).map((value) => (
@@ -522,6 +526,7 @@ export const TraitsPicker = memo(function TraitsPicker({
   size = "sm",
   hidden = false,
   disabled = false,
+  onSelectionComplete,
   ...persistence
 }: TraitsMenuContentProps &
   TraitsPersistence & {
@@ -628,6 +633,7 @@ export const TraitsPicker = memo(function TraitsPicker({
           reportedModelSelection={reportedModelSelection}
           allowPromptInjectedEffort={allowPromptInjectedEffort}
           planModeEnabled={planModeEnabled}
+          {...(onSelectionComplete ? { onSelectionComplete } : {})}
           {...persistence}
         />
       </MenuPopup>

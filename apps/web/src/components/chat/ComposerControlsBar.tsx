@@ -43,6 +43,8 @@ export function ComposerControlsBar(props: {
   reportedModelSelection: ChatComposerProps["reportedModelSelection"];
   promptUltrathink: PromptUltrathink;
   onPromptEdit: (edit: (prompt: string) => string) => void;
+  /** Returns focus to the composer once a traits menu choice is made. */
+  onTraitsSelectionComplete: () => void;
   planModeEnabled: boolean;
   planModeUiEnabled: boolean;
   interactionMode: ProviderInteractionMode;
@@ -92,6 +94,7 @@ export function ComposerControlsBar(props: {
     reportedModelSelection,
     promptUltrathink,
     onPromptEdit,
+    onTraitsSelectionComplete,
     planModeEnabled,
     planModeUiEnabled,
     interactionMode,
@@ -139,6 +142,7 @@ export function ComposerControlsBar(props: {
     reportedModelSelection,
     promptUltrathink,
     onPromptEdit,
+    onSelectionComplete: onTraitsSelectionComplete,
     planModeEnabled,
   });
   const providerTraitsPickerInput = {
@@ -152,6 +156,7 @@ export function ComposerControlsBar(props: {
     reportedModelSelection,
     promptUltrathink,
     onPromptEdit,
+    onSelectionComplete: onTraitsSelectionComplete,
     planModeEnabled,
     isComposerOwned: true,
   } satisfies Parameters<typeof renderProviderTraitsPicker>[0];
