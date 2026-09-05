@@ -5,6 +5,7 @@ import {
   remoteSchemeForEditor,
   type SystemSettingsPane,
 } from "@t3tools/contracts";
+import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -141,11 +142,13 @@ const openMacBundle = (bundleId: string, url: string) =>
     Effect.runPromise,
   );
 
-export const layer = Layer.succeed(
+export const layer = Layer.effect(
   ElectronShell,
-  make({
-    platform: process.platform,
-    openDefault: (url) => Electron.shell.openExternal(url),
-    openMacBundle,
-  }),
+  Effect.map(HostProcessPlatform, (platform) =>
+    make({
+      platform,
+      openDefault: (url) => Electron.shell.openExternal(url),
+      openMacBundle,
+    }),
+  ),
 );

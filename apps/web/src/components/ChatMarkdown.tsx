@@ -2364,23 +2364,6 @@ function useChatMarkdownState({
     [environmentId, openInEditor],
   );
   const diffThemeName = resolveDiffThemeName(resolvedTheme);
-  const markdownSource = useMemo(() => normalizeLatexMathDelimiters(text), [text]);
-  const remarkPlugins = useMemo(
-    () =>
-      [
-        remarkGfm,
-        [remarkMath, { singleDollarTextMath: false }],
-        [remarkPromoteBracketDisplayMath, { source: text }],
-        remarkGithubAlerts,
-        remarkNormalizeListItemIndentation,
-        remarkCodexDirectives,
-        ...(lineBreaks ? [remarkBreaks] : []),
-        remarkPreserveCodeMeta,
-        remarkNormalizeLinksAndTagInlineCode,
-        ...extraRemarkPlugins,
-      ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>,
-    [extraRemarkPlugins, lineBreaks, text],
-  );
   const markdownFileLinkMetaByHref = useMemo(() => {
     const metaByHref = new Map<
       string,
@@ -3296,17 +3279,27 @@ function ChatMarkdown({
     localMediaPreview,
     setLocalMediaPreview,
   } = useChatMarkdownState({ text, ...props });
+  const markdownSource = useMemo(() => normalizeLatexMathDelimiters(text), [text]);
   const incrementalParsing =
     props.isStreaming === true &&
     extraRemarkPlugins.length === 0 &&
     /(?:^|\n) {0,3}(?:`{3}|~{3})/.test(text);
   const remarkPlugins = useMemo(
-    () => [
-      ...(lineBreaks ? CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS : CHAT_MARKDOWN_REMARK_PLUGINS),
-      ...extraRemarkPlugins,
-      ...(incrementalParsing ? [createIncrementalMarkdownPlugin()] : []),
-    ],
-    [extraRemarkPlugins, incrementalParsing, lineBreaks],
+    () =>
+      [
+        remarkGfm,
+        [remarkMath, { singleDollarTextMath: false }],
+        [remarkPromoteBracketDisplayMath, { source: text }],
+        remarkGithubAlerts,
+        remarkNormalizeListItemIndentation,
+        remarkCodexDirectives,
+        ...(lineBreaks ? [remarkBreaks] : []),
+        remarkPreserveCodeMeta,
+        remarkNormalizeLinksAndTagInlineCode,
+        ...extraRemarkPlugins,
+        ...(incrementalParsing ? [createIncrementalMarkdownPlugin()] : []),
+      ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>,
+    [extraRemarkPlugins, incrementalParsing, lineBreaks, text],
   );
   // react-markdown converts unparsed HTML nodes to text when skipHtml is false.
   // Keep that behavior explicit because literal mode depends on escaping the
