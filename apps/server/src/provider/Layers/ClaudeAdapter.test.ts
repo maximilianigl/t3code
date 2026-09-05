@@ -435,7 +435,11 @@ describe("ClaudeAdapterLive", () => {
           canUseTool(
             "Bash",
             { command: "pwd" },
-            { signal: new AbortController().signal, toolUseID: "tool-use-bypass-off" },
+            {
+              signal: new AbortController().signal,
+              toolUseID: "tool-use-bypass-off",
+              requestId: "request-bypass-off",
+            },
           ),
         );
         assert.deepEqual(result, { behavior: "allow", updatedInput: { command: "pwd" } });

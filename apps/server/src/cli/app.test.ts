@@ -198,11 +198,14 @@ describe("t3 app", () => {
         yield* runCli(["app"], { T3CODE_HOME: baseDir });
         yield* runCli(["app", explicitPath, "--base-dir", baseDir]);
 
-        expect(desktop.received.map((request) => request.workspaceRoot)).toEqual([
+        const workspaceRequests = desktop.received.filter(
+          (request) => request.type === "open-workspace",
+        );
+        expect(workspaceRequests.map((request) => request.workspaceRoot)).toEqual([
           workingDirectory,
           explicitPath,
         ]);
-        expect(desktop.received.every((request) => request.platform === platform)).toBe(true);
+        expect(workspaceRequests.every((request) => request.platform === platform)).toBe(true);
       }).pipe(Effect.scoped),
     ),
   );

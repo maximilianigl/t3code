@@ -574,7 +574,7 @@ export const TraitsPicker = memo(function TraitsPicker({
       setUncontrolledOpen(nextOpen);
       onOpenChange?.(nextOpen);
     },
-    [onOpenChange],
+    [onOpenChange, setUncontrolledOpen],
   );
   const { descriptors, primarySelectDescriptor, ultrathinkPromptControlled } =
     getTraitsSectionVisibility({
