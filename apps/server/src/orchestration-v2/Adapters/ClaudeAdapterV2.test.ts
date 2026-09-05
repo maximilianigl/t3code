@@ -414,6 +414,25 @@ describe("ClaudeAdapterV2 runtime query policy", () => {
     });
   });
 
+  it("approves without asking in full access without bypass, even when bypass is disabled", () => {
+    const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      cwd: "/workspace",
+    });
+    for (const availability of [
+      { bypassDisabled: false, autoDisabled: false },
+      { bypassDisabled: true, autoDisabled: false },
+    ]) {
+      assert.deepEqual(
+        ClaudeAdapterV2.claudeRuntimeQueryPolicyForRuntimePolicy(runtimePolicy, availability, {
+          fullAccessWithoutBypass: true,
+        }),
+        { permissionMode: "default", installPermissionCallback: false },
+      );
+    }
+  });
+
   it("keeps approval checks when Full access must fall back to an allowed Claude mode", () => {
     const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
       runtimeMode: "full-access",

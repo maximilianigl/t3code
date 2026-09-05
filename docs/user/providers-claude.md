@@ -67,6 +67,19 @@ over 200,000 tokens. Each Claude provider's settings can override it:
 - **Never** skips idle compaction and Claude's resume prompt. **Auto-compact after**
   still applies, and you can still compact by hand.
 
+## Full access when bypass mode is disabled
+
+In **Full access**, T3 Code normally starts Claude Code in bypass permissions mode. When a managed
+Claude Code policy disables that mode, Claude runs in auto or default mode instead and asks you to
+approve actions.
+
+Turn on **Full access without bypass mode** in the Claude provider settings to skip those prompts.
+T3 Code starts Claude in its normal permission mode and approves each tool request on your behalf.
+Claude Code and managed-policy deny rules still apply because Claude does not send forbidden tools
+to T3 Code for approval.
+
+The other permission modes are unchanged.
+
 ## Usage limits
 
 If your Claude subscription runs out of usage mid-turn, the thread shows which

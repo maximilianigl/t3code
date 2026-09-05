@@ -2127,14 +2127,22 @@ const CLAUDE_BYPASS_FULLY_AVAILABLE: ClaudeBypassAvailability = {
 export function claudeRuntimeQueryPolicyForRuntimePolicy(
   runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
   availability: ClaudeBypassAvailability = CLAUDE_BYPASS_FULLY_AVAILABLE,
+  settings?: Pick<ClaudeSettings, "fullAccessWithoutBypass">,
 ): ClaudeRuntimeQueryPolicy {
   const requestedMode = permissionModeForClaudeRuntimePolicy(runtimePolicy);
-  const downgraded = requestedMode === "bypassPermissions" && availability.bypassDisabled;
-  const permissionMode = downgraded
-    ? availability.autoDisabled
-      ? "default"
-      : "auto"
-    : requestedMode;
+  // A managed Claude policy can forbid bypass mode. Keep Claude's default mode
+  // instead; the callback is not marked as asking, so it approves every request.
+  const approveWithoutBypass =
+    requestedMode === "bypassPermissions" && settings?.fullAccessWithoutBypass === true;
+  const downgraded =
+    !approveWithoutBypass && requestedMode === "bypassPermissions" && availability.bypassDisabled;
+  const permissionMode = approveWithoutBypass
+    ? "default"
+    : downgraded
+      ? availability.autoDisabled
+        ? "default"
+        : "auto"
+      : requestedMode;
   const readOnlyTools =
     sandboxPolicyKindForClaudeRuntimePolicy(runtimePolicy) === "readOnly"
       ? CLAUDE_READ_ONLY_ALLOWED_TOOLS
@@ -4152,6 +4160,13 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             permissionModeForClaudeRuntimePolicy(turnInput.runtimePolicy) !== "bypassPermissions"
           ) {
             return claudeRuntimeQueryPolicyForRuntimePolicy(turnInput.runtimePolicy);
+          }
+          if (adapterOptions.settings.fullAccessWithoutBypass) {
+            return claudeRuntimeQueryPolicyForRuntimePolicy(
+              turnInput.runtimePolicy,
+              CLAUDE_BYPASS_FULLY_AVAILABLE,
+              adapterOptions.settings,
+            );
           }
           const cwd = turnInput.runtimePolicy.cwd;
           if (bypassCache === null || bypassCache.cwd !== cwd) {
