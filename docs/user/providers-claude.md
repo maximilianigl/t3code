@@ -53,6 +53,19 @@ You can also send `/compact` in an existing conversation. Web and desktop offer
 a large older thread. See [commands and skills](./composer.md#commands-and-skills)
 for using composer commands.
 
+## Full access when bypass mode is disabled
+
+In **Full access**, T3 Code normally starts Claude Code in bypass permissions mode. Some
+organizations disable that mode through a managed Claude Code policy, which prevents Claude from
+starting the thread.
+
+Turn on **Full access without bypass mode** in the Claude provider settings. T3 Code will start
+Claude in its normal permission mode and approve each tool request on your behalf. Claude Code and
+managed-policy deny rules still apply because Claude does not send forbidden tools to T3 Code for
+approval.
+
+The other permission modes are unchanged.
+
 ## Usage limits
 
 If your Claude subscription runs out of usage mid-turn, the thread shows which
