@@ -441,6 +441,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["ask before thread chat history"],
   },
   {
+    id: "desktop-notifications",
+    title: "Desktop notifications",
+    to: "/settings/general",
+    searchTerms: ["system agent completed error approval input background"],
+    desktopOnly: true,
+  },
+  {
     id: "quit-confirmation",
     title: "Quit shortcut",
     to: "/settings/general",

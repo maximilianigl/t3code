@@ -30,6 +30,7 @@ const clientSettings: ClientSettings = {
   browserProfiles: [{ id: "work", name: "Work", kind: "persistent" }],
   browserDefaultProfileId: "work",
   confirmQuit: "double-click",
+  desktopNotificationsEnabled: true,
   confirmThreadArchive: true,
   confirmThreadDelete: false,
   confirmThreadUnpin: false,

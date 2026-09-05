@@ -23,6 +23,8 @@ function dependencies(
 ): DesktopAppActivationDependencies {
   return {
     getTarget: () => ({ environmentId, platform: "linux" }),
+    findThread: () => ({ projectId: existingProjectId }),
+    openExistingThread: vi.fn(async () => undefined),
     findProject: () => ({
       id: existingProjectId,
       environmentId,
@@ -50,6 +52,47 @@ describe("desktop app activation", () => {
       projectId: existingProjectId,
       threadId,
     });
+  });
+
+  it("opens an existing thread from a desktop notification", async () => {
+    const deps = dependencies();
+    const notificationRequest = {
+      version: 1,
+      requestId: "notification-1",
+      type: "open-thread",
+      environmentId,
+      threadId,
+    } as const;
+
+    const response = await handleDesktopAppActivationRequest(notificationRequest, deps);
+
+    expect(deps.openExistingThread).toHaveBeenCalledWith({ environmentId, threadId });
+    expect(deps.openThread).not.toHaveBeenCalled();
+    expect(response).toEqual({
+      version: 1,
+      requestId: notificationRequest.requestId,
+      ok: true,
+      projectId: existingProjectId,
+      threadId,
+    });
+  });
+
+  it("does not route a notification for a thread that disappeared", async () => {
+    const deps = dependencies({ findThread: () => null });
+
+    const response = await handleDesktopAppActivationRequest(
+      {
+        version: 1,
+        requestId: "notification-1",
+        type: "open-thread",
+        environmentId,
+        threadId,
+      },
+      deps,
+    );
+
+    expect(deps.openExistingThread).not.toHaveBeenCalled();
+    expect(response).toMatchObject({ ok: false, code: "thread-open-failed" });
   });
 
   it("waits for a created project before it opens the thread", async () => {

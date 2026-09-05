@@ -1,5 +1,6 @@
 import type {
   DesktopAppActivationFailure,
+  DesktopAppActivationPlatform,
   DesktopAppActivationRequest,
   DesktopAppActivationResponse,
   EnvironmentId,
@@ -20,8 +21,20 @@ export interface DesktopAppActivationTarget {
   readonly platform: ExecutionEnvironmentPlatformOs;
 }
 
+export interface DesktopAppActivationThread {
+  readonly projectId: ProjectId;
+}
+
 export interface DesktopAppActivationDependencies {
   readonly getTarget: () => DesktopAppActivationTarget | null;
+  readonly findThread: (
+    environmentId: EnvironmentId,
+    threadId: ThreadId,
+  ) => DesktopAppActivationThread | null;
+  readonly openExistingThread: (input: {
+    readonly environmentId: EnvironmentId;
+    readonly threadId: ThreadId;
+  }) => Promise<void>;
   readonly findProject: (
     environmentId: EnvironmentId,
     workspaceRoot: string,
@@ -45,7 +58,7 @@ function failure(
 }
 
 function desktopPlatformToEnvironmentOs(
-  platform: DesktopAppActivationRequest["platform"],
+  platform: DesktopAppActivationPlatform,
 ): ExecutionEnvironmentPlatformOs {
   return platform === "win32" ? "windows" : platform;
 }
@@ -58,6 +71,36 @@ export async function handleDesktopAppActivationRequest(
   request: DesktopAppActivationRequest,
   dependencies: DesktopAppActivationDependencies,
 ): Promise<DesktopAppActivationResponse> {
+  if (request.type === "open-thread") {
+    const thread = dependencies.findThread(request.environmentId, request.threadId);
+    if (thread === null) {
+      return failure(
+        request.requestId,
+        "thread-open-failed",
+        "The thread is no longer available in the desktop app.",
+      );
+    }
+    try {
+      await dependencies.openExistingThread({
+        environmentId: request.environmentId,
+        threadId: request.threadId,
+      });
+      return {
+        version: 1,
+        requestId: request.requestId,
+        ok: true,
+        projectId: thread.projectId,
+        threadId: request.threadId,
+      };
+    } catch (error) {
+      return failure(
+        request.requestId,
+        "thread-open-failed",
+        errorMessage(error, "T3 Code could not open the thread."),
+      );
+    }
+  }
+
   const target = dependencies.getTarget();
   if (target === null) {
     return failure(

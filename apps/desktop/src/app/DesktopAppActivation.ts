@@ -208,6 +208,9 @@ export class DesktopAppActivation extends Context.Service<
     readonly start: Effect.Effect<void, DesktopAppActivationStartError, Scope.Scope>;
     readonly setRendererReady: (ready: boolean) => Effect.Effect<void>;
     readonly complete: (response: DesktopAppActivationResponse) => Effect.Effect<void>;
+    readonly request: (
+      request: DesktopAppActivationRequest,
+    ) => Effect.Effect<DesktopAppActivationResponse>;
   }
 >()("@t3tools/desktop/app/DesktopAppActivation") {}
 
@@ -301,6 +304,7 @@ export const make = Effect.gen(function* () {
       });
     }),
     complete: (response) => Effect.sync(() => broker.complete(response)),
+    request: (request) => Effect.promise(() => broker.request(request)),
   });
 });
 

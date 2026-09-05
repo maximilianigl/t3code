@@ -11,7 +11,7 @@ import {
   PreviewAutomationWaitForInput,
 } from "./previewAutomation.ts";
 import { SnapShotSource } from "./orchestration.ts";
-import { EnvironmentId, TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { EnvironmentId, ThreadId, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { BrowserProfileId } from "./browserProfile.ts";
 import type {
   BrowserImportResult,
@@ -46,6 +46,15 @@ export interface ContextMenuItem<T extends string = string> {
 export type QuitShortcutHintEvent =
   | { readonly state: "down"; readonly mode: Exclude<QuitConfirmationMode, "direct"> }
   | { readonly state: "up" };
+
+export const DesktopNotificationInputSchema = Schema.Struct({
+  id: TrimmedNonEmptyString,
+  title: TrimmedNonEmptyString,
+  body: TrimmedNonEmptyString,
+  environmentId: EnvironmentId,
+  threadId: ThreadId,
+});
+export type DesktopNotificationInput = typeof DesktopNotificationInputSchema.Type;
 
 export interface ContextMenuItemSchemaType {
   readonly id: string;
@@ -1141,6 +1150,8 @@ export interface DesktopBridge {
   getLocalEnvironmentBearerToken: () => Promise<string>;
   getClientSettings: () => Promise<ClientSettings | null>;
   setClientSettings: (settings: ClientSettings) => Promise<void>;
+  /** Present when the desktop shell can display native operating-system notifications. */
+  showNotification?: (notification: DesktopNotificationInput) => Promise<boolean>;
   getConnectionCatalog?: () => Promise<string | null>;
   setConnectionCatalog?: (catalog: string) => Promise<boolean>;
   clearConnectionCatalog?: () => Promise<void>;
