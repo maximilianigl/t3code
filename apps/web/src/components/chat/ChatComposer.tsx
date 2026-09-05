@@ -2635,6 +2635,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     modelOptions: composerModelOptions?.[selectedInstanceId],
     prompt,
     onPromptChange: setPromptFromTraits,
+    onSelectionComplete: scheduleComposerFocus,
     planModeEnabled: settings.planModeEnabled,
   });
   const providerTraitsPickerInput = {
@@ -2647,6 +2648,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     modelOptions: composerModelOptions?.[selectedInstanceId],
     prompt,
     onPromptChange: setPromptFromTraits,
+    onSelectionComplete: scheduleComposerFocus,
     planModeEnabled: settings.planModeEnabled,
     isComposerOwned: true,
   } satisfies Parameters<typeof renderProviderTraitsPicker>[0];
