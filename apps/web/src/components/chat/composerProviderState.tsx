@@ -60,6 +60,7 @@ type TraitsRenderInput = {
   isComposerOwned?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onSelectionComplete?: () => void;
 };
 
 export function getComposerPromptInjectionState(prompt: string): ComposerPromptInjectionState {
@@ -185,6 +186,7 @@ function renderTraitsControl(
     isComposerOwned,
     open,
     onOpenChange,
+    onSelectionComplete,
   } = input;
   const hasTarget = threadRef !== undefined || draftId !== undefined;
   const { selections: resolvedModelOptions } = resolveComposerOptionSelections(
@@ -226,6 +228,7 @@ function renderTraitsControl(
       {...(isComposerOwned ? { isComposerOwned } : {})}
       {...(open !== undefined ? { open } : {})}
       {...(onOpenChange ? { onOpenChange } : {})}
+      {...(onSelectionComplete ? { onSelectionComplete } : {})}
     />
   );
 }
