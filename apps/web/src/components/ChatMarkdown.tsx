@@ -153,6 +153,7 @@ import {
   MARKDOWN_MATH_CODE_CLASS_NAMES,
   normalizeLatexMathDelimiters,
   rehypeStripKatexErrorTitle,
+  remarkPandocSingleDollarMath,
   remarkPromoteBracketDisplayMath,
 } from "../markdown-math";
 import {
@@ -3289,6 +3290,7 @@ function ChatMarkdown({
       [
         remarkGfm,
         [remarkMath, { singleDollarTextMath: false }],
+        remarkPandocSingleDollarMath,
         [remarkPromoteBracketDisplayMath, { source: text }],
         remarkGithubAlerts,
         remarkNormalizeListItemIndentation,

@@ -1,5 +1,8 @@
+import { math as micromarkMath } from "micromark-extension-math";
+import type { Code, Construct } from "micromark-util-types";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
+import type { Processor } from "unified";
 import { unified } from "unified";
 
 interface MarkdownNode {
@@ -29,6 +32,63 @@ interface HtmlNode {
 export const MARKDOWN_MATH_CODE_CLASS_NAMES = ["math-inline", "math-display"] as const;
 
 const markdownParser = unified().use(remarkParse).use(remarkGfm);
+
+const DOLLAR_SIGN = 36;
+
+const singleDollarMathText = micromarkMath({ singleDollarTextMath: true }).text?.[
+  DOLLAR_SIGN
+] as Construct;
+
+function isWhitespaceCode(code: number): boolean {
+  return code === 32 || code === 9 || code === 10 || code === 13;
+}
+
+function isDigitCode(code: Code): boolean {
+  return code !== null && code >= 48 && code <= 57;
+}
+
+/**
+ * `$...$` inline math under Pandoc's rules: the opening `$` is followed by a
+ * non-space character, the closing `$` is preceded by one and not followed by
+ * a digit. `$E=mc^2$` renders while `$20,000 to USD$30,000` stays prose.
+ *
+ * `remark-math` only offers all-or-nothing single dollars, so this lets its
+ * tokenizer match and then rejects matches that break the rules. A rejected
+ * `$` falls through to plain text and the next `$` gets its own attempt, so
+ * `Pay $5 then $x$` still renders `x`.
+ */
+const pandocSingleDollarMathText: Construct = {
+  name: "pandocMathText",
+  // remark-math's construct handles `$$`; it must run first.
+  add: "after",
+  previous: singleDollarMathText.previous,
+  tokenize(effects, ok, nok) {
+    const afterMath = (code: Code) => {
+      const mathText = this.sliceSerialize(this.events[this.events.length - 1]![1]);
+      if (
+        isWhitespaceCode(mathText.charCodeAt(1)) ||
+        isWhitespaceCode(mathText.charCodeAt(mathText.length - 2)) ||
+        isDigitCode(code)
+      ) {
+        return nok(code);
+      }
+      return ok(code);
+    };
+    return effects.attempt(singleDollarMathText, afterMath, nok);
+  },
+};
+
+/**
+ * Enables Pandoc-style `$...$` inline math. Use after `remark-math` configured
+ * with `singleDollarTextMath: false`, which keeps `$$...$$` working.
+ */
+function attachPandocSingleDollarMath(this: Processor): void {
+  const data = this.data();
+  const micromarkExtensions = data.micromarkExtensions ?? (data.micromarkExtensions = []);
+  micromarkExtensions.push({ text: { [DOLLAR_SIGN]: pandocSingleDollarMathText } });
+}
+
+export const remarkPandocSingleDollarMath = attachPandocSingleDollarMath;
 
 type Delimiter = "(" | ")" | "[" | "]";
 
