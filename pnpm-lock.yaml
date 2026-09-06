@@ -657,6 +657,9 @@ importers:
       mermaid:
         specifier: ^11.17.2
         version: 11.17.2
+      micromark-extension-math:
+        specifier: ^3.1.0
+        version: 3.1.0
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -742,6 +745,9 @@ importers:
       compression:
         specifier: ^1.8.1
         version: 1.8.1
+      micromark-util-types:
+        specifier: ^2.0.2
+        version: 2.0.2
       react-test-renderer:
         specifier: 19.2.6
         version: 19.2.6(react@19.2.6)

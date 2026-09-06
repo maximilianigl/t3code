@@ -13,6 +13,7 @@ import {
   MARKDOWN_MATH_CODE_CLASS_NAMES,
   normalizeLatexMathDelimiters,
   rehypeStripKatexErrorTitle,
+  remarkPandocSingleDollarMath,
   remarkPromoteBracketDisplayMath,
 } from "./markdown-math";
 
@@ -43,6 +44,7 @@ function renderMarkdown(source: string, sanitize = false): string {
   const remarkPlugins = [
     remarkGfm,
     [remarkMath, { singleDollarTextMath: false }],
+    remarkPandocSingleDollarMath,
     [remarkPromoteBracketDisplayMath, { source }],
     remarkNormalizeListItemIndentation,
   ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
@@ -87,6 +89,41 @@ describe("normalizeLatexMathDelimiters", () => {
     const html = renderMarkdown("Costs rose from $20,000 to USD$30,000");
     expect(html).not.toContain('class="katex"');
     expect(html).toContain("$20,000 to USD$30,000");
+  });
+
+  it("renders single-dollar inline math", () => {
+    const html = renderMarkdown("Energy: $E=mc^2$ here");
+    expect(html).toContain('class="katex"');
+    expect(html).not.toContain('class="katex-display"');
+  });
+
+  it("gives single-dollar math precedence over inline markup", () => {
+    const html = renderMarkdown("$a*b*c$");
+    expect(html).toContain('class="katex"');
+    expect(html).not.toContain("<em>");
+  });
+
+  it("leaves single dollars as text when they violate Pandoc's rules", () => {
+    for (const source of [
+      "Pay $5 now and $ later",
+      "Pay $ 5 now and 10$ later",
+      "Between $5 and $10 tonight",
+    ]) {
+      const html = renderMarkdown(source);
+      expect(html, source).not.toContain('class="katex"');
+    }
+  });
+
+  it("pairs a closing dollar with the nearest valid opener", () => {
+    const html = renderMarkdown("Pay $5 then $x$");
+    expect(html.match(/class="katex"/g)).toHaveLength(1);
+    expect(html).toContain("Pay $5 then ");
+  });
+
+  it("does not treat escaped dollars as math delimiters", () => {
+    const html = renderMarkdown("\\$x\\$ then $y$");
+    expect(html.match(/class="katex"/g)).toHaveLength(1);
+    expect(html).toContain("$x$ then ");
   });
 
   it("rewrites paired inline and display delimiters", () => {
