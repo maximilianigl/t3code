@@ -80,6 +80,19 @@ Stashes containing uploaded files must be restored in their original environment
 Those files are retained for 24 hours. After an upload expires, restore the prompt
 and use **Attach again** or remove the missing file before sending.
 
+## Queue a message for after the current turn
+
+On desktop and web, `Enter` while the agent is working sends your message into the running
+turn right away. Press `Alt+Enter` (or `Option+Enter` on macOS) instead to queue it: the message
+waits above the composer and is sent automatically the moment the agent finishes, including
+while it is waiting on an approval or a question. On an idle thread `Alt+Enter` simply sends.
+
+Queued messages send in order, and they keep sending while you work in other threads. Each row
+can be sent immediately, moved back into the composer for editing, or removed. The queue pauses
+when a message fails to send, when the agent does not pick a message up, when the agent's turn
+fails, or when you stop the agent, and stays paused until you retry or remove the first row. The
+queue lives in the app window that created it, so it is cleared by a reload.
+
 ## Voice input on iPhone
 
 On supported iPhones with iOS 26 or later, use the composer's microphone to record,

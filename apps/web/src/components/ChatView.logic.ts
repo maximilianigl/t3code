@@ -48,6 +48,7 @@ import {
 } from "../lib/terminalContext";
 import type { DraftThreadEnvMode } from "../composerDraftStore";
 import type { ComposerSubmissionIntent } from "../composer-logic";
+import { hasQueuedTurnStart } from "@t3tools/client-runtime/state/thread-settled";
 import type { TimelineEntry } from "../session-logic";
 import type { DesktopPreviewOverlay } from "../previewStateStore";
 import type { RightPanelSurface } from "../rightPanelStore";
@@ -1106,4 +1107,115 @@ export function shouldRefocusComposerOnWindowFocus(
       '[role="dialog"], [role="alertdialog"], [data-slot$="-popup"], [data-terminal-owner]',
     ) === null
   );
+}
+
+export interface QueuedMessageThreadState {
+  phase: SessionPhase;
+  latestTurn: Thread["latestTurn"] | null | undefined;
+  session: Thread["session"] | null | undefined;
+  /** Newest server-side user message time; drives the unadopted-turn check. */
+  latestUserMessageAt: string | null;
+  /** A send this client issued that the server has not reflected yet. */
+  isSendBusy: boolean;
+  hasPendingApproval: boolean;
+  hasPendingUserInput: boolean;
+  now: string;
+}
+
+/**
+ * The agent still owns the thread, so a send right now would steer the
+ * running turn (or speak over a pending approval). Alt+Enter queues instead,
+ * and the queue waits. Covers the two windows the session status misses: a
+ * dispatched turn start no provider turn has adopted yet, and a provider turn
+ * that opened before the session flipped to running.
+ */
+export function isThreadBusyForQueuedMessage(input: QueuedMessageThreadState): boolean {
+  if (input.phase === "running" || input.phase === "connecting") return true;
+  if (input.isSendBusy || input.hasPendingApproval || input.hasPendingUserInput) return true;
+  if (
+    hasQueuedTurnStart(
+      {
+        latestUserMessageAt: input.latestUserMessageAt,
+        latestTurn: input.latestTurn ?? null,
+        session: input.session ?? null,
+      },
+      { now: input.now },
+    )
+  ) {
+    return true;
+  }
+  // A stale "running" turn on a dead session must not pin the queue forever.
+  return input.phase !== "disconnected" && input.latestTurn?.state === "running";
+}
+
+/** What the thread looked like when a queued message's start command was accepted. */
+export interface QueuedSendPending {
+  readonly latestTurnIdBefore: string | null;
+  readonly sessionUpdatedAtBefore: string | null;
+  readonly sentAtMs: number;
+}
+
+/** Matches the client-runtime adoption grace so both checks give up together. */
+export const QUEUED_SEND_ADOPTION_MAX_MS = 2 * 60 * 1_000;
+
+export type QueuedSendOutcome =
+  | { readonly kind: "waiting" }
+  | { readonly kind: "adopted" }
+  | { readonly kind: "failed"; readonly reason: string };
+
+/**
+ * An accepted start command says nothing about whether the provider opened a
+ * turn. The queue must not move on until the shell shows a new turn, and must
+ * stop if the session errors or nothing happens for the whole grace window,
+ * otherwise later entries would drain into the same failure one after another.
+ */
+export function resolveQueuedSendOutcome(
+  pending: QueuedSendPending,
+  shell: { latestTurn: Thread["latestTurn"] | null; session: Thread["session"] | null },
+  nowMs: number,
+): QueuedSendOutcome {
+  const latestTurnId = shell.latestTurn?.turnId ?? null;
+  if (latestTurnId !== null && latestTurnId !== pending.latestTurnIdBefore) {
+    return { kind: "adopted" };
+  }
+  if (
+    shell.session?.status === "error" &&
+    shell.session.updatedAt !== pending.sessionUpdatedAtBefore
+  ) {
+    return {
+      kind: "failed",
+      reason: `The previous message failed to start: ${shell.session.lastError ?? "the agent session reported an error."}`,
+    };
+  }
+  if (nowMs - pending.sentAtMs > QUEUED_SEND_ADOPTION_MAX_MS) {
+    return { kind: "failed", reason: "The previous message was not picked up by the agent." };
+  }
+  return { kind: "waiting" };
+}
+
+export interface QueuedTurnObservation {
+  readonly turnId: string | null;
+  readonly state: NonNullable<Thread["latestTurn"]>["state"] | null;
+}
+
+export type QueuedTurnEnding = "stopped" | "failed";
+
+/**
+ * A watched turn that becomes interrupted (the user pressed Stop) or errored
+ * (the provider failed) while a queue exists. Sending the next queued message
+ * right after would undo the stop, or drain the whole queue into the same
+ * failure one message at a time, so the queue pauses instead. The first
+ * observation is only a baseline: a thread already stopped or failed when the
+ * message was queued sends normally.
+ */
+export function queuedTurnEnding(
+  previous: QueuedTurnObservation | undefined,
+  next: QueuedTurnObservation,
+): QueuedTurnEnding | null {
+  if (previous === undefined) return null;
+  const ending =
+    next.state === "interrupted" ? "stopped" : next.state === "error" ? "failed" : null;
+  if (ending === null) return null;
+  const alreadySeen = previous.turnId === next.turnId && previous.state === next.state;
+  return alreadySeen ? null : ending;
 }

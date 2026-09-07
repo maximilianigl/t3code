@@ -72,6 +72,10 @@ import {
   shouldShowPlanFollowUpPrompt,
   shouldWriteThreadErrorToCurrentServerThread,
   toolGroupConsumesUpwardNavigation,
+  isThreadBusyForQueuedMessage,
+  QUEUED_SEND_ADOPTION_MAX_MS,
+  queuedTurnEnding,
+  resolveQueuedSendOutcome,
 } from "./ChatView.logic";
 
 describe("agent browser close confirmation", () => {
@@ -2020,5 +2024,185 @@ describe("threadShellHasStarted", () => {
       threadShellHasStarted({ latestTurn: null, latestUserMessageAt: null, session: null }),
     ).toBe(false);
     expect(threadShellHasStarted(null)).toBe(false);
+  });
+});
+
+describe("queued message dispatch", () => {
+  const idle = {
+    phase: "ready" as const,
+    latestTurn: completedTurn,
+    session: readySession,
+    latestUserMessageAt: now,
+    isSendBusy: false,
+    hasPendingApproval: false,
+    hasPendingUserInput: false,
+    now: "2026-03-29T00:00:20.000Z",
+  };
+
+  it("treats a settled thread as idle", () => {
+    expect(isThreadBusyForQueuedMessage(idle)).toBe(false);
+  });
+
+  it("is busy while the session runs, starts, or waits on the user", () => {
+    expect(isThreadBusyForQueuedMessage({ ...idle, phase: "running" })).toBe(true);
+    expect(isThreadBusyForQueuedMessage({ ...idle, phase: "connecting" })).toBe(true);
+    expect(isThreadBusyForQueuedMessage({ ...idle, isSendBusy: true })).toBe(true);
+    expect(isThreadBusyForQueuedMessage({ ...idle, hasPendingApproval: true })).toBe(true);
+    expect(isThreadBusyForQueuedMessage({ ...idle, hasPendingUserInput: true })).toBe(true);
+  });
+
+  it("is busy while a dispatched turn start has not been adopted yet", () => {
+    // The user message landed after every timestamp on the latest turn, and
+    // the session has not moved: the reactor is still starting the turn.
+    expect(
+      isThreadBusyForQueuedMessage({
+        ...idle,
+        latestUserMessageAt: "2026-03-29T00:00:15.000Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("is busy while a provider turn is open on a live session", () => {
+    expect(
+      isThreadBusyForQueuedMessage({
+        ...idle,
+        latestTurn: { ...completedTurn, state: "running", completedAt: null },
+      }),
+    ).toBe(true);
+  });
+
+  it("does not let a stale running turn on a dead session pin the queue", () => {
+    expect(
+      isThreadBusyForQueuedMessage({
+        ...idle,
+        phase: "disconnected",
+        session: null,
+        latestTurn: { ...completedTurn, state: "running", completedAt: null },
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("queued send outcome", () => {
+  const pending = {
+    latestTurnIdBefore: String(completedTurn.turnId),
+    sessionUpdatedAtBefore: readySession.updatedAt,
+    sentAtMs: Date.parse("2026-03-29T00:01:00.000Z"),
+  };
+  const shortlyAfter = pending.sentAtMs + 5_000;
+
+  it("waits while the shell still shows the pre-send turn and session", () => {
+    expect(
+      resolveQueuedSendOutcome(
+        pending,
+        { latestTurn: completedTurn, session: readySession },
+        shortlyAfter,
+      ),
+    ).toEqual({ kind: "waiting" });
+  });
+
+  it("is adopted once a new turn appears", () => {
+    expect(
+      resolveQueuedSendOutcome(
+        pending,
+        {
+          latestTurn: { ...completedTurn, turnId: TurnId.make("turn-2"), state: "running" },
+          session: readySession,
+        },
+        shortlyAfter,
+      ),
+    ).toEqual({ kind: "adopted" });
+  });
+
+  it("fails when the session errors after the send", () => {
+    const outcome = resolveQueuedSendOutcome(
+      pending,
+      {
+        latestTurn: completedTurn,
+        session: {
+          ...readySession,
+          status: "error",
+          lastError: "provider unavailable",
+          updatedAt: "2026-03-29T00:01:02.000Z",
+        },
+      },
+      shortlyAfter,
+    );
+    expect(outcome.kind).toBe("failed");
+    expect(outcome.kind === "failed" && outcome.reason).toContain("provider unavailable");
+  });
+
+  it("ignores an error state that predates the send", () => {
+    expect(
+      resolveQueuedSendOutcome(
+        { ...pending, sessionUpdatedAtBefore: "2026-03-29T00:00:50.000Z" },
+        {
+          latestTurn: completedTurn,
+          session: {
+            ...readySession,
+            status: "error",
+            lastError: "old",
+            updatedAt: "2026-03-29T00:00:50.000Z",
+          },
+        },
+        shortlyAfter,
+      ),
+    ).toEqual({ kind: "waiting" });
+  });
+
+  it("fails once the adoption grace window passes with no new turn", () => {
+    expect(
+      resolveQueuedSendOutcome(
+        pending,
+        { latestTurn: completedTurn, session: readySession },
+        pending.sentAtMs + QUEUED_SEND_ADOPTION_MAX_MS + 1,
+      ).kind,
+    ).toBe("failed");
+  });
+});
+
+describe("queuedTurnEnding", () => {
+  it("reports a stop when a watched turn becomes interrupted", () => {
+    expect(
+      queuedTurnEnding(
+        { turnId: "turn-1", state: "running" },
+        { turnId: "turn-1", state: "interrupted" },
+      ),
+    ).toBe("stopped");
+    expect(
+      queuedTurnEnding(
+        { turnId: "turn-1", state: "completed" },
+        { turnId: "turn-2", state: "interrupted" },
+      ),
+    ).toBe("stopped");
+  });
+
+  it("reports a failure when a watched turn errors", () => {
+    expect(
+      queuedTurnEnding(
+        { turnId: "turn-1", state: "running" },
+        { turnId: "turn-1", state: "error" },
+      ),
+    ).toBe("failed");
+  });
+
+  it("treats the first observation as a baseline, even if already ended", () => {
+    expect(queuedTurnEnding(undefined, { turnId: "turn-1", state: "interrupted" })).toBeNull();
+    expect(queuedTurnEnding(undefined, { turnId: "turn-1", state: "error" })).toBeNull();
+  });
+
+  it("does not re-report an ending already seen", () => {
+    expect(
+      queuedTurnEnding(
+        { turnId: "turn-1", state: "interrupted" },
+        { turnId: "turn-1", state: "interrupted" },
+      ),
+    ).toBeNull();
+    expect(
+      queuedTurnEnding(
+        { turnId: "turn-1", state: "running" },
+        { turnId: "turn-1", state: "completed" },
+      ),
+    ).toBeNull();
   });
 });
