@@ -7375,7 +7375,9 @@ export default function ChatView(props: ChatViewProps) {
       prompt: nextPrompt,
       detectTrigger: true,
     });
-    composerRef.current?.focusAtEnd();
+    // Deferred on purpose: focusing the editor synchronously reports its
+    // still-empty text back as a change and would wipe the prompt just set.
+    scheduleComposerFocus();
   };
   const queuedMessagesPanel =
     queuedMessages.length > 0 ? (
