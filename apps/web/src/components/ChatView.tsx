@@ -305,6 +305,9 @@ import {
   useComposerDraftStore,
   DraftId,
 } from "../composerDraftStore";
+import { EMPTY_QUEUED_MESSAGES as EMPTY_AFTER_TURN_QUEUED_MESSAGES, useQueuedMessagesStore } from "../queuedMessagesStore";
+import { dispatchQueuedMessage } from "../lib/queuedMessageDispatch";
+import { QueuedMessagesPanel } from "./chat/QueuedMessagesPanel";
 import {
   formatTerminalContextLabel,
   type TerminalContextDraft,
@@ -477,6 +480,7 @@ import {
   codexArtifactTemplatePromptToAppend,
   waitForStartedServerThread,
   shouldRefocusComposerOnWindowFocus,
+  isThreadBusyForQueuedMessage,
 } from "./ChatView.logic";
 import type { ThreadSyncPhase } from "../threadSync";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
@@ -8698,6 +8702,176 @@ export default function ChatView(props: ChatViewProps) {
   // of starting a new turn the moment the interrupted one settles.
   restoreQueuedMessagesRef.current = restoreQueuedMessagesToComposer;
 
+  // ------------------------------------------------------------------
+  // Queued messages (Alt+Enter): wait for the agent instead of steering it.
+  // Enqueue and the row UI live here; sending is app-level so it also runs
+  // for threads that are not on screen (see useQueuedMessageDrain).
+  // ------------------------------------------------------------------
+  const enqueueQueuedMessage = useQueuedMessagesStore((store) => store.enqueue);
+  const removeQueuedMessage = useQueuedMessagesStore((store) => store.remove);
+  const clearQueuedMessageFailure = useQueuedMessagesStore((store) => store.clearFailure);
+  const afterTurnQueuedMessages = useQueuedMessagesStore(
+    (store) =>
+      (activeThreadKey ? store.queuesByThreadKey[activeThreadKey] : undefined) ??
+      EMPTY_AFTER_TURN_QUEUED_MESSAGES,
+  );
+  const sendingQueuedMessageId = useQueuedMessagesStore((store) =>
+    activeThreadKey ? (store.sendingByThreadKey[activeThreadKey] ?? null) : null,
+  );
+  const threadBusyForQueue =
+    isServerThread &&
+    isThreadBusyForQueuedMessage({
+      phase,
+      latestTurn: activeThread?.latestTurn ?? null,
+      session: activeThread?.session ?? null,
+      latestUserMessageAt,
+      isSendBusy,
+      hasPendingApproval: activePendingApproval !== null,
+      hasPendingUserInput: pendingUserInputs.length > 0,
+      now: new Date().toISOString(),
+    });
+
+  const onQueueMessage = () => {
+    if (!activeThread || !activeThreadKey || !isServerThread) return;
+    const sendCtx = composerRef.current?.getSendContext();
+    if (!sendCtx) return;
+    const { hasSendableContent, sendableTerminalContexts } = deriveComposerSendState({
+      prompt: sendCtx.prompt,
+      imageCount: sendCtx.images.length + sendCtx.files.length,
+      terminalContexts: sendCtx.terminalContexts,
+      elementContextCount:
+        sendCtx.elementContexts.length +
+        sendCtx.previewAnnotations.length +
+        sendCtx.reviewComments.length,
+    });
+    if (!hasSendableContent) return;
+    // Resolve the provider input now, exactly as a send would: nothing in it
+    // depends on the agent's reply, and the composer is only available here.
+    const textWithContexts = appendElementContextsToPrompt(
+      appendTerminalContextsToPrompt(sendCtx.prompt, sendableTerminalContexts),
+      sendCtx.elementContexts,
+    );
+    const textWithAnnotations = sendCtx.previewAnnotations.reduce(
+      (text, annotation) => appendPreviewAnnotationPrompt(text, annotation),
+      textWithContexts,
+    );
+    const outgoingText = formatOutgoingPrompt({
+      provider: sendCtx.selectedProvider,
+      model: sendCtx.selectedModel,
+      models: sendCtx.selectedProviderModels,
+      effort: sendCtx.selectedPromptEffort,
+      text:
+        appendReviewCommentsToPrompt(textWithAnnotations, sendCtx.reviewComments) ||
+        ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
+    });
+    if (composerRef.current?.validateProviderInput(outgoingText) === false) return;
+    const draftImages = sendCtx.images;
+    // Fresh preview URLs so the queued copy survives the draft's cleanup.
+    const queuedImages = draftImages.map(cloneComposerImageForRetry);
+    enqueueQueuedMessage(activeThreadKey, {
+      id: newMessageId(),
+      createdAt: new Date().toISOString(),
+      environmentId: activeThread.environmentId,
+      threadId: activeThread.id,
+      prompt: sendCtx.prompt,
+      images: queuedImages,
+      files: [...sendCtx.files],
+      terminalContexts: [...sendCtx.terminalContexts],
+      elementContexts: [...sendCtx.elementContexts],
+      previewAnnotations: [...sendCtx.previewAnnotations],
+      reviewComments: [...sendCtx.reviewComments],
+      outgoingText,
+      modelSelection: sendCtx.selectedModelSelection,
+      runtimeMode,
+      interactionMode: sendCtx.interactionMode,
+      failureMessage: null,
+    });
+    promptRef.current = "";
+    clearComposerDraftContent(composerDraftTarget);
+    composerRef.current?.resetCursorState();
+    draftImages.forEach((image, index) => {
+      if (queuedImages[index]?.previewUrl !== image.previewUrl) {
+        revokeBlobPreviewUrl(image.previewUrl);
+      }
+    });
+  };
+
+  const onSendQueuedMessageNow = (messageId: string) => {
+    const entry = afterTurnQueuedMessages.find((candidate) => candidate.id === messageId);
+    if (!entry) return;
+    void dispatchQueuedMessage(entry.failureMessage ? { ...entry, failureMessage: null } : entry);
+  };
+  const onRetryQueuedMessage = (messageId: string) => {
+    // Unpausing is enough: the drain sends it once the thread is idle.
+    if (activeThreadKey) clearQueuedMessageFailure(activeThreadKey, messageId);
+  };
+  const onRemoveAfterTurnQueuedMessage = (messageId: string) => {
+    if (!activeThreadKey) return;
+    const entry = removeQueuedMessage(activeThreadKey, messageId);
+    if (!entry) return;
+    releaseDraftAttachments([...entry.images, ...entry.files]);
+    for (const image of entry.images) {
+      revokeBlobPreviewUrl(image.previewUrl);
+    }
+  };
+  const onEditQueuedMessage = (messageId: string) => {
+    if (!activeThreadKey) return;
+    const entry = removeQueuedMessage(activeThreadKey, messageId);
+    if (!entry) return;
+    // Merge into whatever the user has typed since; nothing is overwritten.
+    const currentPrompt = promptRef.current;
+    const nextPrompt =
+      currentPrompt.trim().length > 0
+        ? `${currentPrompt.trimEnd()}\n${entry.prompt}`
+        : entry.prompt;
+    const draft = useComposerDraftStore.getState().getComposerDraft(composerDraftTarget);
+    promptRef.current = nextPrompt;
+    setComposerDraftPrompt(composerDraftTarget, nextPrompt);
+    if (entry.images.length > 0) addComposerDraftImages(composerDraftTarget, [...entry.images]);
+    if (entry.files.length > 0) addComposerDraftFiles(composerDraftTarget, [...entry.files]);
+    if (entry.terminalContexts.length > 0) {
+      setComposerDraftTerminalContexts(composerDraftTarget, [
+        ...(draft?.terminalContexts ?? []),
+        ...entry.terminalContexts,
+      ]);
+    }
+    if (entry.elementContexts.length > 0) {
+      setComposerDraftElementContexts(composerDraftTarget, [
+        ...(draft?.elementContexts ?? []),
+        ...entry.elementContexts,
+      ]);
+    }
+    if (entry.previewAnnotations.length > 0) {
+      setComposerDraftPreviewAnnotations(composerDraftTarget, [
+        ...(draft?.previewAnnotations ?? []),
+        ...entry.previewAnnotations,
+      ]);
+    }
+    if (entry.reviewComments.length > 0) {
+      setComposerDraftReviewComments(composerDraftTarget, [
+        ...(draft?.reviewComments ?? []),
+        ...entry.reviewComments,
+      ]);
+    }
+    composerRef.current?.resetCursorState({
+      cursor: collapseExpandedComposerCursor(nextPrompt, nextPrompt.length),
+      prompt: nextPrompt,
+      detectTrigger: true,
+    });
+    composerRef.current?.focusAtEnd();
+  };
+  const queuedMessagesPanel =
+    afterTurnQueuedMessages.length > 0 ? (
+      <QueuedMessagesPanel
+        messages={afterTurnQueuedMessages}
+        sendingMessageId={sendingQueuedMessageId}
+        onSendNow={onSendQueuedMessageNow}
+        onEdit={onEditQueuedMessage}
+        onRemove={onRemoveAfterTurnQueuedMessage}
+        onRetry={onRetryQueuedMessage}
+      />
+    ) : null;
+
   const onRespondToApproval = useCallback(
     async (requestId: ApprovalRequestId, decision: ProviderApprovalDecision) => {
       if (!activeThreadId) return;
@@ -10171,6 +10345,8 @@ export default function ChatView(props: ChatViewProps) {
                             onPageScrollRelease={onComposerPageScrollRelease}
                             onCompactContext={onCompactContext}
                             onSend={onSend}
+                            onQueueMessage={threadBusyForQueue ? onQueueMessage : undefined}
+                            queuedMessagesPanel={queuedMessagesPanel}
                             onInterrupt={onInterrupt}
                             onImplementPlanInNewThread={onImplementPlanInNewThread}
                             onRespondToApproval={onRespondToApproval}

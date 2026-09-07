@@ -35,6 +35,7 @@ import { ThemeEditorHost } from "../components/settings/ThemeEditorHost";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 import { useDefaultThemeAdoption } from "../hooks/useDefaultTheme";
 import { useEnvironmentThemeSync } from "../hooks/useEnvironmentTheme";
+import { useQueuedMessageDrain } from "../hooks/useQueuedMessageDrain";
 import { Button } from "../components/ui/button";
 import { StandalonePage, StandalonePageHeader } from "../components/ui/standalone-page";
 import {
@@ -236,6 +237,7 @@ function RootRouteView() {
           ) : null}
           {primaryEnvironmentAuthenticated ? <PlanAgentSelectionHeal /> : null}
           {primaryEnvironmentAuthenticated ? <ProviderUpdateLaunchNotification /> : null}
+          <QueuedMessageDrain />
           {appShell}
           {/* Above the router: a theme draft is judged by walking the app, so the
               editor has to survive navigation away from settings. */}
@@ -244,6 +246,12 @@ function RootRouteView() {
       </AnchoredToastProvider>
     </ToastProvider>
   );
+}
+
+/** Above the router: queued messages must keep sending while Settings or Usage is open. */
+function QueuedMessageDrain() {
+  useQueuedMessageDrain();
+  return null;
 }
 
 /** Follows the palette the primary environment's machine publishes, if any. */

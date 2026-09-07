@@ -1204,6 +1204,7 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
   isEnvironmentUnavailable: boolean;
   hasSendableContent: boolean;
   preserveComposerFocusOnPointerDown?: boolean;
+  onQueueMessage?: (() => void) | undefined;
   onPreviousPendingQuestion: () => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
@@ -1237,6 +1238,7 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
         isPreparingWorktree={props.isPreparingWorktree}
         hasSendableContent={props.hasSendableContent}
         preserveComposerFocusOnPointerDown={props.preserveComposerFocusOnPointerDown ?? false}
+        onQueueMessage={props.onQueueMessage}
         onPreviousPendingQuestion={props.onPreviousPendingQuestion}
         onInterrupt={props.onInterrupt}
         onImplementPlanInNewThread={props.onImplementPlanInNewThread}
@@ -1440,6 +1442,13 @@ export interface ChatComposerProps {
   // Callbacks
   onCompactContext: () => void;
   onSend: (e?: { preventDefault: () => void }, intent?: ComposerSubmissionIntent) => void;
+  /**
+   * Alt+Enter target while the agent still owns the thread. Absent when the
+   * thread is idle, in which case Alt+Enter sends like Enter.
+   */
+  onQueueMessage?: (() => void) | undefined;
+  /** Queued-message list rendered attached above the composer, next to the banners. */
+  queuedMessagesPanel?: React.ReactNode;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
   onRespondToApproval: (
@@ -4018,6 +4027,35 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     if (key === "ArrowUp" || key === "ArrowDown") {
       return navigatePromptHistory(key === "ArrowUp" ? "backward" : "forward", event);
     }
+    // Alt+Enter queues behind the running turn instead of steering it. On an
+    // idle thread there is nothing to wait for, so it sends like plain Enter.
+    if (
+      key === "Enter" &&
+      event.altKey &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !isMobileViewport
+    ) {
+      if (props.onQueueMessage) {
+        if (noProviderAvailable || isSendDisabled) return true;
+        if (activeThreadId && (pendingImageCompressionsRef.current.get(activeThreadId) ?? 0) > 0) {
+          toastManager.add({
+            type: "info",
+            title: "Still compressing a pasted image.",
+            description: "Queue again once its thumbnail appears.",
+          });
+          return true;
+        }
+        // Also while the agent waits on a question: the typed text becomes a
+        // queued follow-up rather than the answer.
+        props.onQueueMessage();
+        return true;
+      }
+      if (activePendingProgress) return false;
+      submitComposer(undefined, "foreground");
+      return true;
+    }
     const submissionIntent =
       key === "Enter"
         ? composerSubmissionIntentForEnter({
@@ -6187,6 +6225,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             className="relative z-0"
             items={bannerStackItems}
           />
+          {props.queuedMessagesPanel}
           {!activityStackItem && (props.threadSyncPhase || inlineTasksBadge) ? (
             <ComposerBanner.Attachment>
               <ComposerBanner.Root data-chat-composer-activity-strip="true">
@@ -7035,6 +7074,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     isPreparingWorktree={isPreparingWorktree}
                     hasSendableContent={composerSendState.hasSendableContent}
                     preserveComposerFocusOnPointerDown={isMobileViewport || isComposerResting}
+                    onQueueMessage={props.onQueueMessage}
                     onPreviousPendingQuestion={onPreviousActivePendingUserInputQuestion}
                     onInterrupt={handleInterruptPrimaryAction}
                     onImplementPlanInNewThread={handleImplementPlanInNewThreadPrimaryAction}

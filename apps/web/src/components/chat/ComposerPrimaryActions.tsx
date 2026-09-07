@@ -1,11 +1,12 @@
 import { memo, type PointerEventHandler } from "react";
-import { ChevronDownIcon, ChevronLeftIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronLeftIcon, ListEndIcon } from "lucide-react";
 import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
 import { cn } from "~/lib/utils";
 import { StageBackdropButtonArt, useSidebarStageBackdropVariant } from "../SidebarStageBackdrop";
 import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Spinner } from "../ui/spinner";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { composerFloatingLayerProps } from "./composerEventScope";
 
 interface PendingActionState {
@@ -29,6 +30,8 @@ interface ComposerPrimaryActionsProps {
   isPreparingWorktree: boolean;
   hasSendableContent: boolean;
   preserveComposerFocusOnPointerDown?: boolean;
+  /** Present while the thread is busy and the composer holds something to queue (Alt+Enter). */
+  onQueueMessage?: (() => void) | undefined;
   onPreviousPendingQuestion: () => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
@@ -74,6 +77,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   isPreparingWorktree,
   hasSendableContent,
   preserveComposerFocusOnPointerDown = false,
+  onQueueMessage,
   onPreviousPendingQuestion,
   onInterrupt,
   onImplementPlanInNewThread,
@@ -265,14 +269,41 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     </button>
   );
 
+  const queueButton =
+    onQueueMessage && hasSendableContent && !isSendDisabled && !isEnvironmentUnavailable ? (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              size="icon-sm"
+              variant="outline"
+              className="rounded-full"
+              {...pointerFocusProps}
+              onClick={onQueueMessage}
+              aria-label="Queue message"
+            />
+          }
+        >
+          <ListEndIcon className="size-3.5" />
+        </TooltipTrigger>
+        <TooltipPopup>Queue until the agent finishes (Alt+Enter)</TooltipPopup>
+      </Tooltip>
+    ) : null;
+
   if (!isRunning) {
-    return sendButton;
+    return (
+      <>
+        {queueButton}
+        {sendButton}
+      </>
+    );
   }
 
   // While a turn runs, a sendable draft queues for the next tool boundary, so
   // the send button stays next to Stop on every viewport.
   return (
     <>
+      {queueButton}
       {renderStopGenerationButton(false)}
       {hasSendableContent ? sendButton : null}
     </>
