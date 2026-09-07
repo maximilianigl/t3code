@@ -27,6 +27,7 @@ import {
 import * as PreviewManager from "../preview/Manager.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import * as DesktopExternalLinks from "../settings/DesktopExternalLinks.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import { makeQuitShortcutHandler } from "./QuitHold.ts";
 
@@ -78,6 +79,7 @@ type DesktopWindowRuntimeServices =
   | DesktopAssets.DesktopAssets
   | DesktopAppSettings.DesktopAppSettings
   | DesktopClientSettings.DesktopClientSettings
+  | DesktopExternalLinks.DesktopExternalLinks
   | ElectronApp.ElectronApp
   | ElectronMenu.ElectronMenu
   | ElectronShell.ElectronShell
@@ -315,6 +317,7 @@ export const make = Effect.gen(function* () {
   const assets = yield* DesktopAssets.DesktopAssets;
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const electronShell = yield* ElectronShell.ElectronShell;
+  const externalLinks = yield* DesktopExternalLinks.DesktopExternalLinks;
   const electronTheme = yield* ElectronTheme.ElectronTheme;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
   const previewManager = yield* PreviewManager.PreviewManager;
@@ -603,7 +606,7 @@ export const make = Effect.gen(function* () {
 
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (Option.isSome(ElectronShell.parseSafeExternalUrl(url))) {
-        void runPromise(electronShell.openExternal(url));
+        void runPromise(externalLinks.open(url));
       }
       return { action: "deny" };
     });
@@ -619,7 +622,7 @@ export const make = Effect.gen(function* () {
 
       event.preventDefault();
       if (Option.isSome(ElectronShell.parseSafeExternalUrl(url))) {
-        void runPromise(electronShell.openExternal(url));
+        void runPromise(externalLinks.open(url));
       }
     });
 
