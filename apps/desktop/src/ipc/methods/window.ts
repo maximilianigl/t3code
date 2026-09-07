@@ -26,6 +26,7 @@ import * as DesktopBackendPool from "../../backend/DesktopBackendPool.ts";
 import * as DesktopLocalEnvironmentAuth from "../../backend/DesktopLocalEnvironmentAuth.ts";
 import * as DesktopEnvironment from "../../app/DesktopEnvironment.ts";
 import * as DesktopAppSettings from "../../settings/DesktopAppSettings.ts";
+import * as DesktopExternalLinks from "../../settings/DesktopExternalLinks.ts";
 import * as DesktopWslBackend from "../../wsl/DesktopWslBackend.ts";
 import * as DesktopWslEnvironment from "../../wsl/DesktopWslEnvironment.ts";
 import * as ElectronApp from "../../electron/ElectronApp.ts";
@@ -294,8 +295,8 @@ export const openExternal = DesktopIpc.makeIpcMethod({
   payload: Schema.String,
   result: Schema.Boolean,
   handler: Effect.fn("desktop.ipc.window.openExternal")(function* (url) {
-    const shell = yield* ElectronShell.ElectronShell;
-    return yield* shell.openExternal(url);
+    const externalLinks = yield* DesktopExternalLinks.DesktopExternalLinks;
+    return yield* externalLinks.open(url);
   }),
 });
 

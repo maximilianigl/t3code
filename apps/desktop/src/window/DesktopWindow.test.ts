@@ -41,6 +41,7 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import * as DesktopExternalLinks from "../settings/DesktopExternalLinks.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as ElectronShell from "../electron/ElectronShell.ts";
@@ -293,17 +294,17 @@ function makeTestLayer(input: {
           popupTemplate: input.onPopupTemplate ?? (() => Effect.void),
         }),
         Layer.succeed(ElectronShell.ElectronShell, {
-          openExternal: (url) =>
+          openExternal: () => Effect.succeed(true),
+          openSystemSettings: () => Effect.succeed(true),
+          copyText: () => Effect.void,
+        } satisfies ElectronShell.ElectronShell["Service"]),
+        Layer.succeed(DesktopExternalLinks.DesktopExternalLinks, {
+          open: (url) =>
             Effect.sync(() => {
               input.openedExternalUrls?.push(url);
               return true;
             }),
-          openSystemSettings: () => Effect.succeed(true),
-          copyText: (text) =>
-            Effect.sync(() => {
-              input.copiedTexts?.push(text);
-            }),
-        } satisfies ElectronShell.ElectronShell["Service"]),
+        } satisfies DesktopExternalLinks.DesktopExternalLinks["Service"]),
         electronThemeLayer,
         electronWindowLayer,
         Layer.mock(PreviewManager.PreviewManager)({
@@ -406,6 +407,9 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
             openSystemSettings: () => Effect.succeed(true),
             copyText: () => Effect.void,
           } satisfies ElectronShell.ElectronShell["Service"]),
+          Layer.succeed(DesktopExternalLinks.DesktopExternalLinks, {
+            open: () => Effect.succeed(true),
+          } satisfies DesktopExternalLinks.DesktopExternalLinks["Service"]),
           electronThemeLayer,
           Layer.succeed(ElectronWindow.ElectronWindow, electronWindowShape),
           Layer.mock(PreviewManager.PreviewManager)({
