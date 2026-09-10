@@ -296,7 +296,10 @@ function makeTestLayer(input: {
         Layer.succeed(ElectronShell.ElectronShell, {
           openExternal: () => Effect.succeed(true),
           openSystemSettings: () => Effect.succeed(true),
-          copyText: () => Effect.void,
+          copyText: (text) =>
+            Effect.sync(() => {
+              input.copiedTexts?.push(text);
+            }),
         } satisfies ElectronShell.ElectronShell["Service"]),
         Layer.succeed(DesktopExternalLinks.DesktopExternalLinks, {
           open: (url) =>

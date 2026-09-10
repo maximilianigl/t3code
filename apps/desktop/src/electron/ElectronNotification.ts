@@ -11,7 +11,7 @@ export interface ElectronNotificationInput {
   readonly body: string;
 }
 
-export class ElectronNotificationShowError extends Schema.TaggedErrorClass<ElectronNotificationShowError>()(
+export class ElectronNotificationShowError extends Schema.TaggedError<ElectronNotificationShowError>()(
   "ElectronNotificationShowError",
   {
     notificationId: Schema.String,
