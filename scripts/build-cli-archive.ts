@@ -542,14 +542,17 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
       "tar (zip)",
     );
   } else {
-    // On Linux, pnpm hard-links identical files out of its store and node-gyp
-    // hard-links build outputs, and GNU tar records those as link entries.
+    // On a Linux build host, pnpm hard-links identical files out of its store
+    // and node-gyp hard-links build outputs, and GNU tar records those as link
+    // entries. Cross-built Linux archives staged on macOS use cloned files and
+    // bsdtar does not support this GNU-only flag.
     // The npm registry rejects a tarball containing any, and the npm platform
     // packages are re-packed from this archive's contents, so store every
     // file as a file. macOS's bsdtar has no such flag; pnpm clones there.
     yield* runCommand(
       ChildProcess.make("tar", [
-        ...(input.platform === "linux" ? ["--hard-dereference"] : []),
+        ...(hostPlatform === "linux" ? ["--hard-dereference"] : []),
+        ...(hostPlatform === "darwin" ? ["--no-xattrs"] : []),
         "-czf",
         archivePath,
         "-C",
