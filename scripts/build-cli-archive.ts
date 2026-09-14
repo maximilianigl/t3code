@@ -499,9 +499,11 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
     );
   } else {
     // npm rejects Linux hardlink entries; macOS pnpm clones and bsdtar lacks this flag.
+    // Cross-building a Linux archive on macOS: skip extended attributes GNU tar would warn about.
     yield* runCommand(
       ChildProcess.make("tar", [
-        ...(input.platform === "linux" ? ["--hard-dereference"] : []),
+        ...(hostPlatform === "linux" ? ["--hard-dereference"] : []),
+        ...(hostPlatform === "darwin" ? ["--no-xattrs"] : []),
         "-czf",
         archivePath,
         "-C",
