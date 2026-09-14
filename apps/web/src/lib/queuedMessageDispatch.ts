@@ -22,6 +22,7 @@ import {
 } from "../components/ChatView.logic";
 import { fileAttachmentCapabilityBlockReason } from "../components/chat/composerAttachmentFiles";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
+import { buildMessageContext } from "./composerContextRecords";
 import { type QueuedComposerMessage, useQueuedMessagesStore } from "../queuedMessagesStore";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { derivePhase } from "../session-logic";
@@ -34,6 +35,7 @@ import {
   startAttachmentUpload,
 } from "./attachmentUploadQueue";
 import { newMessageId } from "./utils";
+import { serializeLegacyContextMessage } from "@t3tools/shared/composerContextLegacySend";
 
 /**
  * Sends whose start command was accepted but whose turn the shell has not
@@ -265,16 +267,44 @@ export async function dispatchQueuedMessage(entry: QueuedComposerMessage): Promi
       });
     }
     try {
+      const allAttachments = all(entry);
+      const context = buildMessageContext({
+        terminalContexts: entry.terminalContexts,
+        reviewComments: entry.reviewComments,
+        previewAnnotations: entry.previewAnnotations,
+        attachments: allAttachments.map((attachment, index) => ({
+          attachment,
+          attachmentId:
+            "id" in (attachments[index] ?? {}) && attachments[index]?.id !== undefined
+              ? attachments[index].id
+              : attachment.id,
+        })),
+      });
+      const supportsInlineMessageContext =
+        appAtomRegistry.get(environmentServerConfigsAtom).get(entry.environmentId)?.environment
+          .capabilities.inlineMessageContext === true;
+      const message = supportsInlineMessageContext
+        ? {
+            messageId: newMessageId(),
+            role: "user" as const,
+            text: entry.outgoingText,
+            attachments,
+            ...(context ? { context } : {}),
+          }
+        : {
+            messageId: newMessageId(),
+            role: "user" as const,
+            text: serializeLegacyContextMessage({
+              text: entry.outgoingText,
+              records: context?.records ?? [],
+            }),
+            attachments,
+          };
       await runOrThrow(threadEnvironment.startTurn, {
         environmentId: entry.environmentId,
         input: {
           threadId: entry.threadId,
-          message: {
-            messageId: newMessageId(),
-            role: "user",
-            text: entry.outgoingText,
-            attachments,
-          },
+          message,
           modelSelection: entry.modelSelection,
           runtimeMode: entry.runtimeMode,
           interactionMode: entry.interactionMode,

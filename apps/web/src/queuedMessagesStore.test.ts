@@ -17,7 +17,6 @@ function makeMessage(
     images: [],
     files: [],
     terminalContexts: [],
-    elementContexts: [],
     previewAnnotations: [],
     reviewComments: [],
     outgoingText: `prompt ${id}`,

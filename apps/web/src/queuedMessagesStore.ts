@@ -9,7 +9,6 @@ import type {
 import { create } from "zustand";
 
 import type { ComposerFileAttachment, ComposerImageAttachment } from "./composerDraftStore";
-import type { ElementContextDraft } from "./lib/elementContext";
 import type { TerminalContextDraft } from "./lib/terminalContext";
 import type { ReviewCommentContext } from "./reviewCommentContext";
 
@@ -32,7 +31,6 @@ export interface QueuedComposerMessage {
   readonly images: ReadonlyArray<ComposerImageAttachment>;
   readonly files: ReadonlyArray<ComposerFileAttachment>;
   readonly terminalContexts: ReadonlyArray<TerminalContextDraft>;
-  readonly elementContexts: ReadonlyArray<ElementContextDraft>;
   readonly previewAnnotations: ReadonlyArray<PreviewAnnotationPayload>;
   readonly reviewComments: ReadonlyArray<ReviewCommentContext>;
   /** Final provider input: prompt with contexts appended and provider formatting applied. */

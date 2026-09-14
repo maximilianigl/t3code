@@ -3,13 +3,13 @@ import { memo } from "react";
 
 import { cn } from "~/lib/utils";
 import type { QueuedComposerMessage } from "~/queuedMessagesStore";
-import { stripInlineTerminalContextPlaceholders } from "~/lib/terminalContext";
+import { stripInlineContextReferences } from "~/lib/composerContextReferences";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ComposerBanner } from "./ComposerBanner";
 
 function queuedMessagePreview(message: QueuedComposerMessage): string {
-  const text = stripInlineTerminalContextPlaceholders(message.prompt).trim().replace(/\s+/g, " ");
+  const text = stripInlineContextReferences(message.prompt).trim().replace(/\s+/g, " ");
   if (text.length > 0) return text;
   const extras = queuedMessageExtrasLabel(message);
   return extras ?? "Empty message";
@@ -23,7 +23,6 @@ function queuedMessageExtrasLabel(message: QueuedComposerMessage): string | null
   }
   const contextCount =
     message.terminalContexts.length +
-    message.elementContexts.length +
     message.previewAnnotations.length +
     message.reviewComments.length;
   if (contextCount > 0) {

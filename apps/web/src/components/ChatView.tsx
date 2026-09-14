@@ -8739,30 +8739,25 @@ export default function ChatView(props: ChatViewProps) {
       prompt: sendCtx.prompt,
       imageCount: sendCtx.images.length + sendCtx.files.length,
       terminalContexts: sendCtx.terminalContexts,
-      elementContextCount:
-        sendCtx.elementContexts.length +
-        sendCtx.previewAnnotations.length +
-        sendCtx.reviewComments.length,
+      elementContextCount: sendCtx.previewAnnotations.length + sendCtx.reviewComments.length,
     });
     if (!hasSendableContent) return;
     // Resolve the provider input now, exactly as a send would: nothing in it
     // depends on the agent's reply, and the composer is only available here.
-    const textWithContexts = appendElementContextsToPrompt(
-      appendTerminalContextsToPrompt(sendCtx.prompt, sendableTerminalContexts),
-      sendCtx.elementContexts,
-    );
-    const textWithAnnotations = sendCtx.previewAnnotations.reduce(
-      (text, annotation) => appendPreviewAnnotationPrompt(text, annotation),
-      textWithContexts,
-    );
+    const queuedPrompt = sendCtx.terminalContexts
+      .filter((context) => !sendableTerminalContexts.includes(context))
+      .reduce(
+        (text, context) =>
+          removeInlineContextReference(text, terminalContextReference(context).contextId).prompt,
+        sendCtx.prompt,
+      )
+      .trim();
     const outgoingText = formatOutgoingPrompt({
       provider: sendCtx.selectedProvider,
       model: sendCtx.selectedModel,
       models: sendCtx.selectedProviderModels,
       effort: sendCtx.selectedPromptEffort,
-      text:
-        appendReviewCommentsToPrompt(textWithAnnotations, sendCtx.reviewComments) ||
-        ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
+      text: queuedPrompt || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
     });
     if (composerRef.current?.validateProviderInput(outgoingText) === false) return;
     const draftImages = sendCtx.images;
@@ -8773,11 +8768,10 @@ export default function ChatView(props: ChatViewProps) {
       createdAt: new Date().toISOString(),
       environmentId: activeThread.environmentId,
       threadId: activeThread.id,
-      prompt: sendCtx.prompt,
+      prompt: queuedPrompt,
       images: queuedImages,
       files: [...sendCtx.files],
-      terminalContexts: [...sendCtx.terminalContexts],
-      elementContexts: [...sendCtx.elementContexts],
+      terminalContexts: [...sendableTerminalContexts],
       previewAnnotations: [...sendCtx.previewAnnotations],
       reviewComments: [...sendCtx.reviewComments],
       outgoingText,
@@ -8833,12 +8827,6 @@ export default function ChatView(props: ChatViewProps) {
       setComposerDraftTerminalContexts(composerDraftTarget, [
         ...(draft?.terminalContexts ?? []),
         ...entry.terminalContexts,
-      ]);
-    }
-    if (entry.elementContexts.length > 0) {
-      setComposerDraftElementContexts(composerDraftTarget, [
-        ...(draft?.elementContexts ?? []),
-        ...entry.elementContexts,
       ]);
     }
     if (entry.previewAnnotations.length > 0) {
