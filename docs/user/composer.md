@@ -131,10 +131,10 @@ and use **Attach again** or remove the missing file before sending.
 
 ## Queue a message for after the current turn
 
-On desktop and web, `Enter` while the agent is working sends your message into the running
-turn right away. Press `Alt+Enter` (or `Option+Enter` on macOS) instead to queue it: the message
-waits above the composer and is sent automatically the moment the agent finishes, including
-while it is waiting on an approval or a question. On an idle thread `Alt+Enter` simply sends.
+On desktop and web, press `Alt+Enter` (or `Option+Enter` on macOS) to hold a message until the
+current turn finishes. It waits above the composer, and you can add it while the agent is
+waiting on an approval or a question. On an idle thread `Alt+Enter` simply sends. Normal
+`Enter` follows your **Follow-up behavior** setting described above.
 
 Queued messages send in order, and they keep sending while you work in other threads. Each row
 can be sent immediately, moved back into the composer for editing, or removed. The queue pauses
