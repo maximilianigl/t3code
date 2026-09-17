@@ -28,6 +28,7 @@ import {
   parseWslRuntimeArchiveMembers,
   readWorkspaceConfig,
   createBuildConfig,
+  findLocalSigningIdentity,
   DESKTOP_FILE_EXCLUSIONS,
   InvalidMacPasskeyRpDomainError,
   InvalidMacPasskeyPublishableKeyError,
@@ -74,6 +75,21 @@ const decodePackageVersion = Schema.decodeUnknownEffect(
 );
 
 // Keeps pnpm from auto-installing TypeScript, a types-only peer, into the app.
+
+it("requires a unique valid Keychain identity and resolves its exact name or fingerprint", () => {
+  const hash = "A".repeat(40);
+  const output = `  1) ${hash} "Apple Development: Local Developer"\n     1 valid identities found`;
+  assert.equal(findLocalSigningIdentity(hash.toLowerCase(), output), hash);
+  assert.equal(findLocalSigningIdentity("Apple Development: Local Developer", output), hash);
+  assert.isUndefined(findLocalSigningIdentity("Local Developer", output));
+  assert.isUndefined(findLocalSigningIdentity(hash, "0 valid identities found"));
+  assert.isUndefined(
+    findLocalSigningIdentity(
+      "Apple Development: Local Developer",
+      `${output}\n  2) ${"B".repeat(40)} "Apple Development: Local Developer"`,
+    ),
+  );
+});
 
 const makeLinuxCliArchiveFixture = Effect.fn("test.makeLinuxCliArchiveFixture")(function* (input: {
   readonly root: string;
@@ -1566,6 +1582,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
             skipBuild: Option.none(),
             keepStage: Option.none(),
             signed: Option.none(),
+            localSigningIdentity: Option.none(),
             verbose: Option.none(),
             mockUpdates: Option.none(),
             mockUpdateServerPort: Option.none(),
@@ -1590,6 +1607,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         skipBuild: Option.some(false),
         keepStage: Option.some(false),
         signed: Option.some(false),
+        localSigningIdentity: Option.none(),
         verbose: Option.some(false),
         mockUpdates: Option.some(false),
         mockUpdateServerPort: Option.none(),
