@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
@@ -490,6 +491,55 @@ describe("ssh tunnel scripts", () => {
       assert.equal(result.credential, "LCL4R2TPHDKQ");
     }).pipe(Effect.provide(processLayer));
   });
+
+  it.effect("creates and reuses a tunnel when readiness responses take five seconds", () =>
+    Effect.gen(function* () {
+      const probes = yield* Queue.unbounded<void>();
+      let tunnelCount = 0;
+      let tunnelKillCount = 0;
+      const spawner = ChildProcessSpawner.make((command) =>
+        Effect.sync(() => {
+          const args = commandArgs(command);
+          if (args.includes("-N")) {
+            tunnelCount += 1;
+            return makeRunningProcess(() => {
+              tunnelKillCount += 1;
+            });
+          }
+          return makeSuccessfulProcess(args.includes("--") ? '{"remotePort":3773}\n' : "");
+        }),
+      );
+      const slowHttpClient = HttpClient.make((request) =>
+        Queue.offer(probes, undefined).pipe(
+          Effect.andThen(Effect.sleep(Duration.seconds(5))),
+          Effect.as(HttpClientResponse.fromWeb(request, new Response("", { status: 200 }))),
+        ),
+      );
+      const layer = Layer.mergeAll(
+        NodeServices.layer,
+        TestClock.layer(),
+        Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner),
+        Layer.succeed(HttpClient.HttpClient, slowHttpClient),
+        Layer.succeed(NetService.NetService, testNetService),
+        SshPasswordPrompt.disabledLayer,
+        SshEnvironmentManager.layer({ resolveCliRunner: Effect.succeed(ARCHIVE) }),
+      );
+      const target = { alias: "devbox", hostname: "devbox", username: null, port: null };
+
+      yield* Effect.gen(function* () {
+        const manager = yield* SshEnvironmentManager;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const fiber = yield* Effect.forkChild(Effect.result(manager.ensureEnvironment(target)));
+          yield* Queue.take(probes);
+          yield* TestClock.adjust(Duration.seconds(20));
+          const result = yield* Fiber.join(fiber);
+          assert.isTrue(Result.isSuccess(result));
+        }
+        assert.equal(tunnelCount, 1);
+        assert.equal(tunnelKillCount, 0);
+      }).pipe(Effect.provide(layer), Effect.scoped);
+    }),
+  );
 
   it.effect.each(["successful stop", "failed stop"] as const)(
     "closes the tunnel scope and starts fresh after a %s",
