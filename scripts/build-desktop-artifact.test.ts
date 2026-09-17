@@ -22,6 +22,7 @@ import {
   createStageWorkspaceConfig,
   createStagePatchedDependencies,
   createBuildConfig,
+  findLocalSigningIdentity,
   DESKTOP_ELECTRON_LANGUAGES,
   DESKTOP_FILE_EXCLUSIONS,
   DESKTOP_EXTRA_RESOURCES,
@@ -93,6 +94,21 @@ import {
 import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
 import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+
+it("requires a unique valid Keychain identity and resolves its exact name or fingerprint", () => {
+  const hash = "A".repeat(40);
+  const output = `  1) ${hash} "Apple Development: Local Developer"\n     1 valid identities found`;
+  assert.equal(findLocalSigningIdentity(hash.toLowerCase(), output), hash);
+  assert.equal(findLocalSigningIdentity("Apple Development: Local Developer", output), hash);
+  assert.isUndefined(findLocalSigningIdentity("Local Developer", output));
+  assert.isUndefined(findLocalSigningIdentity(hash, "0 valid identities found"));
+  assert.isUndefined(
+    findLocalSigningIdentity(
+      "Apple Development: Local Developer",
+      `${output}\n  2) ${"B".repeat(40)} "Apple Development: Local Developer"`,
+    ),
+  );
+});
 
 // A minimal stand-in for the Linux CLI release archive: one top-level
 // directory named after the archive stem holding the executable, the web
@@ -1879,6 +1895,40 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 
+  it.effect(
+    "requires the local macOS identity without notarization and lets release signing override it",
+    () =>
+      Effect.gen(function* () {
+        for (const signed of [false, true]) {
+          const config = yield* createBuildConfig(
+            "mac",
+            "dmg",
+            "1.2.3",
+            signed,
+            false,
+            undefined,
+            undefined,
+            false,
+            "arm64",
+            "local-certificate-hash",
+          );
+          const mac = config.mac as Record<string, unknown>;
+          if (signed) {
+            assert.notProperty(mac, "identity");
+            assert.notProperty(mac, "notarize");
+            assert.match(String(mac.sign), /sign-macos\.ts$/);
+          } else {
+            assert.equal(config.forceCodeSigning, true);
+            assert.equal(mac.identity, "local-certificate-hash");
+            assert.equal(mac.type, "development");
+            assert.equal(mac.notarize, false);
+            assert.notProperty(mac, "provisioningProfile");
+            assert.match(String(mac.sign), /sign-macos-local\.ts$/);
+          }
+        }
+      }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
   it.effect("uses the nightly DMG background for nightly macOS builds", () =>
     Effect.gen(function* () {
       const config = yield* createBuildConfig(
@@ -2115,6 +2165,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         skipBuild: Option.none(),
         keepStage: Option.none(),
         signed: Option.none(),
+        localSigningIdentity: Option.none(),
         verbose: Option.none(),
         mockUpdates: Option.none(),
         mockUpdateServerPort: Option.none(),
@@ -2155,6 +2206,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
             skipBuild: Option.none(),
             keepStage: Option.none(),
             signed: Option.none(),
+            localSigningIdentity: Option.none(),
             verbose: Option.none(),
             mockUpdates: Option.none(),
             mockUpdateServerPort: Option.none(),
@@ -2179,6 +2231,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         skipBuild: Option.some(false),
         keepStage: Option.some(false),
         signed: Option.some(false),
+        localSigningIdentity: Option.none(),
         verbose: Option.some(false),
         mockUpdates: Option.some(false),
         mockUpdateServerPort: Option.none(),

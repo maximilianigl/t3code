@@ -197,6 +197,22 @@ passed as `--wsl-runtime`; see the
 
 ### Signing and passkeys
 
+For notifications in a local macOS build, choose a valid code-signing identity from
+`security find-identity -v -p codesigning`. An Apple Development or locally trusted
+self-signed code-signing certificate can be used without notarization:
+
+```sh
+vp run dist:desktop:dmg --local-signing-identity "<certificate SHA-1>"
+```
+
+To reuse it on every local DMG build, set `T3CODE_DESKTOP_LOCAL_SIGNING_IDENTITY` to
+that identity in the repository's gitignored `.env.local`. Each new app is signed
+during packaging; the certificate stays in your Keychain. Replace the setting when
+the certificate expires. macOS may ask for Keychain access and notification permission.
+This signs packaged builds, not the Electron runtime used by `dev:desktop`.
+
 Add `--signed` after configuring the platform credentials in the
 [release runbook](./release.md). macOS passkeys need a signed, provisioned app; follow the
 [Connect setup](./connect-setup.md#desktop-passkeys) for local signing and renderer HMR.
+`--signed` takes precedence over the local-signing identity; local signing alone does
+not enable passkeys or notarized distribution.
