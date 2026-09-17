@@ -305,7 +305,10 @@ import {
   useComposerDraftStore,
   DraftId,
 } from "../composerDraftStore";
-import { EMPTY_QUEUED_MESSAGES as EMPTY_AFTER_TURN_QUEUED_MESSAGES, useQueuedMessagesStore } from "../queuedMessagesStore";
+import {
+  EMPTY_QUEUED_MESSAGES as EMPTY_AFTER_TURN_QUEUED_MESSAGES,
+  useQueuedMessagesStore,
+} from "../queuedMessagesStore";
 import { dispatchQueuedMessage } from "../lib/queuedMessageDispatch";
 import { QueuedMessagesPanel } from "./chat/QueuedMessagesPanel";
 import {
@@ -8846,8 +8849,7 @@ export default function ChatView(props: ChatViewProps) {
       prompt: nextPrompt,
       detectTrigger: true,
     });
-    // Deferred on purpose: focusing the editor synchronously reports its
-    // still-empty text back as a change and would wipe the prompt just set.
+    // Focus after the restored prompt reaches the editor so its old empty value cannot overwrite it.
     scheduleComposerFocus();
   };
   const queuedMessagesPanel =
