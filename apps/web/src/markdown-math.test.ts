@@ -216,8 +216,42 @@ describe("normalizeLatexMathDelimiters", () => {
     );
   });
 
-  it("does not pair delimiters across separate text nodes", () => {
-    const source = "\\(open **bold** close\\)";
+  it.each([
+    String.raw`a*b*c`,
+    String.raw`\underbrace{x}_{a} + \underbrace{y}_{b}`,
+    String.raw`\begin{aligned}
+x &= a*b*c \\
+y &= \underbrace{x}_{a} + \underbrace{y}_{b}
+\end{aligned}`,
+    "a +\n\nb",
+  ])("renders bracket display math before Markdown formatting: %s", (formula) => {
+    const source = `\\[\n${formula}\n\\]`;
+    const dollars = `$$\n${formula}\n$$`;
+    const html = renderMarkdown(source, true);
+    expect(normalizeLatexMathDelimiters(source)).toBe(dollars);
+    expect(html).toBe(renderMarkdown(dollars, true));
+    expect(html).toContain('class="katex-display"');
+    expect(html).not.toContain('class="katex-error"');
+  });
+
+  it("gives parenthesized math precedence over Markdown formatting", () => {
+    expect(renderMarkdown(String.raw`Before \(a*b*c\) after`)).toBe(
+      renderMarkdown("Before $$a*b*c$$ after"),
+    );
+  });
+
+  it("preserves multiline math in lists and blockquotes", () => {
+    for (const prefix of ["  ", "> "]) {
+      const math = ["\\[", "a*b*c +", "", "b", "\\]  "];
+      const source = `${prefix === "  " ? "- formula\n\n" : ""}${math.map((line) => prefix + line).join("\n")}`;
+      const html = renderMarkdown(source, true);
+      expect(html).toContain('class="katex-display"');
+      expect(html).not.toContain('class="katex-error"');
+    }
+  });
+
+  it("leaves LaTeX delimiters inside existing dollar math unchanged", () => {
+    const source = String.raw`$$\text{\(literal\)}$$`;
     expect(normalizeLatexMathDelimiters(source)).toBe(source);
   });
 
