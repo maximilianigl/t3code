@@ -3058,7 +3058,29 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     const targetBranch = input.newRefName ?? input.refName;
     const sanitizedBranch = targetBranch.replace(/\//g, "-");
     const repoName = path.basename(input.cwd);
-    const worktreePath = input.path ?? path.join(worktreesDir, repoName, sanitizedBranch);
+    const defaultPath = path.join(worktreesDir, repoName, sanitizedBranch);
+    let worktreePath = input.path ?? defaultPath;
+    if (input.path == null) {
+      // A worktree can switch branches while keeping its original directory.
+      // Leave that checkout alone and choose a free path for the requested branch.
+      let suffix = 2;
+      while (
+        yield* fileSystem.exists(worktreePath).pipe(
+          Effect.mapError(
+            (cause) =>
+              new GitCommandError({
+                operation: "GitVcsDriver.createWorktree",
+                command: "git",
+                cwd: input.cwd,
+                detail: "Could not check whether the worktree path exists.",
+                cause,
+              }),
+          ),
+        )
+      ) {
+        worktreePath = `${defaultPath}-${suffix++}`;
+      }
+    }
     const args = input.newRefName
       ? ["worktree", "add", "-b", input.newRefName, worktreePath, input.refName]
       : ["worktree", "add", worktreePath, input.refName];

@@ -4733,6 +4733,42 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
     }),
   );
 
+  it.effect("prepares a branch after its original worktree switches to another branch", () =>
+    Effect.gen(function* () {
+      const repoDir = yield* makeTempDir("t3code-git-manager-");
+      yield* initRepo(repoDir);
+      yield* runGit(repoDir, ["branch", "feature/original"]);
+      const { manager } = yield* makeManager();
+      const input = { cwd: repoDir, refName: "feature/original" };
+      const original = yield* prepareBranchThread(manager, input);
+      const originalPath = original.worktreePath as string;
+      yield* runGit(originalPath, ["checkout", "-b", "feature/other"]);
+      NodeFS.writeFileSync(NodePath.join(originalPath, "unfinished.txt"), "keep me\n");
+      // A previous checkout or an unrelated directory can occupy a suffix too.
+      NodeFS.mkdirSync(`${originalPath}-2`);
+
+      const result = yield* prepareBranchThread(manager, input);
+
+      expect(result.branch).toBe("feature/original");
+      expect(result.worktreePath).not.toBe(originalPath);
+      expect(result.worktreePath).not.toBe(`${originalPath}-2`);
+      expect(
+        (yield* runGit(result.worktreePath as string, ["branch", "--show-current"])).stdout.trim(),
+      ).toBe("feature/original");
+      expect((yield* runGit(originalPath, ["branch", "--show-current"])).stdout.trim()).toBe(
+        "feature/other",
+      );
+      expect(NodeFS.readFileSync(NodePath.join(originalPath, "unfinished.txt"), "utf8")).toBe(
+        "keep me\n",
+      );
+      const reused = yield* prepareBranchThread(manager, input);
+      expect(reused.branch).toBe(result.branch);
+      expect(NodeFS.realpathSync(reused.worktreePath as string)).toBe(
+        NodeFS.realpathSync(result.worktreePath as string),
+      );
+    }),
+  );
+
   it.effect("reuses the branch's existing worktree without re-running setup", () =>
     Effect.gen(function* () {
       const repoDir = yield* makeTempDir("t3code-git-manager-");
