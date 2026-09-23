@@ -3698,7 +3698,27 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           detail: `The worktree location "${options?.worktreesDirectory}" must be an absolute folder on this machine, not a drive root. Change it in Settings → Storage.`,
         });
       }
-      worktreePath = path.join(parentDir, repoName, sanitizedBranch);
+      const defaultPath = path.join(parentDir, repoName, sanitizedBranch);
+      worktreePath = defaultPath;
+      // A worktree can switch branches while keeping its original directory.
+      // Leave that checkout alone and choose a free path for the requested branch.
+      let suffix = 2;
+      while (
+        yield* fileSystem.exists(worktreePath).pipe(
+          Effect.mapError(
+            (cause) =>
+              new GitCommandError({
+                operation: "GitVcsDriver.createWorktree",
+                command: "git",
+                cwd: input.cwd,
+                detail: "Could not check whether the worktree path exists.",
+                cause,
+              }),
+          ),
+        )
+      ) {
+        worktreePath = `${defaultPath}-${suffix++}`;
+      }
     }
     const args = input.newRefName
       ? ["worktree", "add", "-b", input.newRefName, "--", worktreePath, input.refName]
