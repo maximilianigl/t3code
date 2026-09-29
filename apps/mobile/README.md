@@ -96,6 +96,31 @@ Build and run the local iOS preview app:
 vp run ios:preview
 ```
 
+Build a standalone Android APK to sideload onto a phone. It installs side-by-side with the
+store app as `T3 Code Preview` and does not need Metro. One-time setup on macOS:
+
+```bash
+brew install openjdk@17
+brew install --cask android-commandlinetools
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+yes | sdkmanager --sdk_root="$HOME/Library/Android/sdk" --licenses
+```
+
+Then build for 64-bit ARM phones:
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export APP_VARIANT=preview T3CODE_MOBILE_UPDATES_ENABLED=0 EXPO_NO_GIT_STATUS=1
+npx expo prebuild --clean --platform android
+(cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a)
+```
+
+The APK is written to `android/app/build/outputs/apk/release/app-release.apk`. Copy it to the
+phone and open it, or install over wireless debugging with `adb install -r`. Disabling updates
+keeps published OTA bundles from replacing the locally built JavaScript. Release builds are signed
+with the prebuild template's debug keystore, so later builds install over earlier ones.
+
 Inspect the resolved Expo config for a variant:
 
 ```bash
