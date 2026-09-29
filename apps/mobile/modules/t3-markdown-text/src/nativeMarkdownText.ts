@@ -437,8 +437,11 @@ function appendNode(
 ): NativeMarkdownTextRun[] {
   switch (node.type) {
     case "text":
-    case "math_inline":
       return appendRun(runs, textNodeContent(nodeTextContent(node)), context);
+    // Native text cannot embed an SVG, so math inside text shows its TeX source.
+    case "math_inline":
+    case "math_block":
+      return appendRun(runs, nodeTextContent(node).trim(), { ...context, code: true });
     case "html_inline":
       return appendRun(runs, inlineHtmlText(nodeTextContent(node)), context);
     case "code_inline": {

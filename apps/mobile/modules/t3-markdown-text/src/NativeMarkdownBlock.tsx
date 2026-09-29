@@ -1,6 +1,7 @@
 import { createContext, memo, useContext, useMemo } from "react";
 import { Image, Platform, ScrollView, Text, useColorScheme, View } from "react-native";
 import type { MarkdownNode } from "react-native-nitro-markdown/headless";
+import { SvgFromXml } from "react-native-svg";
 
 import { CopyTextButton } from "./CopyTextButton";
 import { MarkdownTextPrimitive } from "./MarkdownTextPrimitive";
@@ -221,6 +222,65 @@ function NativeCodeBlock(props: {
   );
 }
 
+type TexToSvg = (tex: string, fontSize?: number) => string;
+
+let texToSvg: TexToSvg | null = null;
+
+/** MathJax is large, so it loads with the first formula instead of at app start. */
+function renderTexSvg(tex: string, fontSize: number, color: string) {
+  try {
+    texToSvg ??= (require("react-native-mathjax-svg") as { texToSvg: TexToSvg }).texToSvg;
+    const xml = texToSvg(tex, fontSize / 2).replace(/currentColor/g, color);
+    const width = Number.parseFloat(/<svg[^>]*\bwidth="([\d.]+)/.exec(xml)?.[1] ?? "");
+    const height = Number.parseFloat(/<svg[^>]*\bheight="([\d.]+)/.exec(xml)?.[1] ?? "");
+    // MathJax reports TeX errors inside the SVG instead of throwing.
+    if (!Number.isFinite(width) || !Number.isFinite(height) || xml.includes("data-mjx-error")) {
+      return null;
+    }
+    return { xml, width, height };
+  } catch {
+    return null;
+  }
+}
+
+/** Display math as a MathJax SVG, falling back to its TeX source when it cannot render. */
+function NativeMathBlock(props: {
+  readonly node: MarkdownNode;
+  readonly textStyle: NativeMarkdownTextStyle;
+}) {
+  const tex = nodeText(props.node).trim();
+  const { fontSize, color } = props.textStyle;
+  const svg = useMemo(() => renderTexSvg(tex, fontSize, color), [tex, fontSize, color]);
+  return (
+    <ScrollView
+      horizontal
+      bounces={false}
+      nestedScrollEnabled={Platform.OS === "android"}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingVertical: 4 }}
+    >
+      {svg ? (
+        <View accessible accessibilityLabel={tex}>
+          <SvgFromXml xml={svg.xml} width={svg.width} height={svg.height} />
+        </View>
+      ) : (
+        <MarkdownTextPrimitive
+          selectable
+          selectionColor={props.textStyle.selectionColor}
+          selectionHandleColor={props.textStyle.selectionHandleColor}
+          style={{
+            color: props.textStyle.codeColor,
+            fontFamily: MONO_FONT_FAMILY,
+            fontSize: codeBlockFontSize(props.textStyle),
+          }}
+        >
+          {tex}
+        </MarkdownTextPrimitive>
+      )}
+    </ScrollView>
+  );
+}
+
 function collectTableRows(node: MarkdownNode): MarkdownNode[] {
   const rows: MarkdownNode[] = [];
   const visit = (child: MarkdownNode) => {
@@ -358,10 +418,22 @@ function NativeMarkdownImage(props: {
   );
 }
 
+/** md4c keeps images and `$$` math inside paragraphs; they render as their own blocks. */
+function isParagraphBlock(node: MarkdownNode): boolean {
+  return node.type === "image" || node.type === "math_block";
+}
+
+function isBreak(node: MarkdownNode | undefined): boolean {
+  return node?.type === "soft_break" || node?.type === "line_break";
+}
+
 function inlineGroups(nodes: ReadonlyArray<MarkdownNode>): MarkdownNode[] {
   const groups: MarkdownNode[] = [];
   let inline: MarkdownNode[] = [];
   const flush = () => {
+    // The line breaks around a block no longer separate anything.
+    while (isBreak(inline[0])) inline.shift();
+    while (isBreak(inline.at(-1))) inline.pop();
     if (inline.length === 0) {
       return;
     }
@@ -370,7 +442,7 @@ function inlineGroups(nodes: ReadonlyArray<MarkdownNode>): MarkdownNode[] {
   };
 
   for (const node of nodes) {
-    if (node.type === "image") {
+    if (isParagraphBlock(node)) {
       flush();
       groups.push(node);
     } else {
@@ -390,7 +462,9 @@ function NativeMixedParagraph(props: {
   return (
     <View style={{ gap: 8 }}>
       {inlineGroups(props.node.children ?? []).map((child, index) =>
-        child.type === "image" ? (
+        child.type === "math_block" ? (
+          <NativeMathBlock key={nodeKey(child, index)} node={child} textStyle={props.textStyle} />
+        ) : child.type === "image" ? (
           <NativeMarkdownImage
             key={nodeKey(child, index)}
             node={child}
@@ -593,7 +667,7 @@ export function NativeMarkdownBlock(props: {
         />
       );
     case "paragraph":
-      return (props.node.children ?? []).some((child) => child.type === "image") ? (
+      return (props.node.children ?? []).some(isParagraphBlock) ? (
         <NativeMixedParagraph
           node={props.node}
           skills={props.skills}
@@ -608,20 +682,11 @@ export function NativeMarkdownBlock(props: {
           onLinkPress={props.onLinkPress}
         />
       );
-    case "html_block":
     case "math_block":
+      return <NativeMathBlock node={props.node} textStyle={props.textStyle} />;
+    case "html_block":
       return (
-        <View
-          style={{
-            marginVertical: props.compact ? 2 : 0,
-            paddingHorizontal: props.node.type === "math_block" ? 10 : 0,
-            paddingVertical: props.node.type === "math_block" ? 8 : 0,
-            backgroundColor:
-              props.node.type === "math_block"
-                ? props.textStyle.codeBackgroundColor
-                : "transparent",
-          }}
-        >
+        <View style={{ marginVertical: props.compact ? 2 : 0 }}>
           <SelectableNode
             node={props.node}
             skills={props.skills}

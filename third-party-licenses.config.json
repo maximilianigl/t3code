@@ -162,6 +162,22 @@
       }
     },
     {
+      "license": "MIT AND Apache-2.0",
+      "name": "react-native-mathjax-svg",
+      "sourceUrl": "https://github.com/railsjack/react-native-mathjax-svg",
+      "generatedNotices": [
+        {
+          "licenseId": "MIT",
+          "copyrights": ["Copyright (c) Nahrae <jinnahrae@gmail.com>"]
+        },
+        {
+          "licenseId": "Apache-2.0",
+          "preamble": ["Bundles MathJax 3.1.4: https://github.com/mathjax/MathJax-src"],
+          "copyrights": ["Copyright (c) 2009-2021 The MathJax Consortium"]
+        }
+      ]
+    },
+    {
       "name": "glob-to-regexp",
       "generatedNotice": {
         "licenseId": "BSD-2-Clause",
