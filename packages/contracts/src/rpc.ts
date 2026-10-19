@@ -15,6 +15,12 @@ import {
   McpAppUpdateModelContextInput,
 } from "./mcpApps.ts";
 import {
+  ThreadNotes,
+  ThreadNotesError,
+  ThreadNotesInput,
+  ThreadNotesSetInput,
+} from "./threadNotes.ts";
+import {
   ChatGptReconnectProfileInput,
   ChatGptReconnectProfile,
   ChatGptImportProfileInput,
@@ -415,6 +421,9 @@ export const WS_METHODS = {
   mcpAppsToolInfo: "mcpApps.toolInfo",
   mcpAppsReadResource: "mcpApps.readResource",
   mcpAppsUpdateModelContext: "mcpApps.updateModelContext",
+
+  threadNotesGet: "threadNotes.get",
+  threadNotesSet: "threadNotes.set",
 
   providerUploadFeedback: "provider.uploadFeedback",
   providerAuthStart: "provider.auth.start",
@@ -1346,6 +1355,18 @@ const WsMcpAppsReadResourceRpc = Rpc.make(WS_METHODS.mcpAppsReadResource, {
   error: Schema.Union([McpAppRequestError, EnvironmentAuthorizationError]),
 });
 
+const WsThreadNotesGetRpc = Rpc.make(WS_METHODS.threadNotesGet, {
+  payload: ThreadNotesInput,
+  success: ThreadNotes,
+  error: Schema.Union([ThreadNotesError, EnvironmentAuthorizationError]),
+});
+
+const WsThreadNotesSetRpc = Rpc.make(WS_METHODS.threadNotesSet, {
+  payload: ThreadNotesSetInput,
+  success: ThreadNotes,
+  error: Schema.Union([ThreadNotesError, EnvironmentAuthorizationError]),
+});
+
 const WsProviderUploadFeedbackRpc = Rpc.make(WS_METHODS.providerUploadFeedback, {
   payload: ProviderUploadFeedbackInput,
   success: ProviderUploadFeedbackResult,
@@ -2035,6 +2056,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsMcpAppsToolInfoRpc,
   WsMcpAppsReadResourceRpc,
   WsMcpAppsUpdateModelContextRpc,
+  WsThreadNotesGetRpc,
+  WsThreadNotesSetRpc,
   WsProviderUploadFeedbackRpc,
   WsSubscribeVcsStatusRpc,
   WsSubscribeWorktreeSetupRpc,

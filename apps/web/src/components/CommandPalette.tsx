@@ -65,8 +65,10 @@ import {
   SquarePenIcon,
   TextSearchIcon,
   UserPlusIcon,
+  NotebookPenIcon,
 } from "lucide-react";
 import { requestThreadFindOpen } from "./chat/threadFindActionBus";
+import { requestThreadNotesToggle } from "../threadNotesStore";
 import {
   useDeferredValue,
   useEffect,
@@ -1266,6 +1268,20 @@ function OpenCommandPaletteDialog(props: {
       shortcutCommand: "chat.find",
       run: async () => {
         requestThreadFindOpen();
+      },
+    });
+  }
+
+  if (activeThread) {
+    actionItems.push({
+      kind: "action",
+      value: "toggle-thread-notes",
+      title: "Toggle thread notes",
+      searchTerms: ["notes", "scratch", "memo", "markdown"],
+      icon: <NotebookPenIcon className={ITEM_ICON_CLASS} />,
+      shortcutCommand: "threadNotes.toggle",
+      run: async () => {
+        requestThreadNotesToggle();
       },
     });
   }

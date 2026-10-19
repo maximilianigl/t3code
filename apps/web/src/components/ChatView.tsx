@@ -153,6 +153,7 @@ import {
   useRightPanelStore,
 } from "../rightPanelStore";
 import { isPreviewSupportedInRuntime, useThreadPreviewState } from "../previewStateStore";
+import { subscribeThreadNotesToggle, useThreadNotesStore } from "../threadNotesStore";
 import { previewRuntimeTabId } from "../browser/previewRuntimeTabId";
 import { ThreadPreviewMiniPlayer } from "./preview/ThreadPreviewMiniPlayer";
 import { usePreviewSession } from "./preview/usePreviewSession";
@@ -1950,6 +1951,24 @@ export default function ChatView(props: ChatViewProps) {
     visiblePullRequestCount,
     onDiffPanelOpen,
   });
+  // Notes live in the thread panel, so showing them opens it, and the shortcut only hides
+  // notes the user can see.
+  const toggleThreadNotes = () => {
+    if (!activeThreadRef) return;
+    const notes = useThreadNotesStore.getState();
+    if (notes.visible && threadPanelOpen) {
+      notes.hide();
+      return;
+    }
+    if (!threadPanelOpen) {
+      useRightPanelStore
+        .getState()
+        .setThreadPanelOpen(activeThreadRef, threadPanelPresentation, true);
+    }
+    notes.show();
+  };
+  const toggleThreadNotesStable = useStableCallback(toggleThreadNotes);
+  useEffect(() => subscribeThreadNotesToggle(toggleThreadNotesStable), [toggleThreadNotesStable]);
   useEffect(() => {
     if (!canMaximizeRightPanel) return;
     if (useRightPanelStore.getState().consumeMaximizeRequest(routeThreadRef)) {
@@ -2709,6 +2728,9 @@ export default function ChatView(props: ChatViewProps) {
       "chat.find": () => {
         if (!isServerThread || serverConfig?.threadFind !== true) return false;
         openThreadFind();
+      },
+      "threadNotes.toggle": ({ event }) => {
+        if (!event.repeat) toggleThreadNotesStable();
       },
       "composer.cycleHost": ({ event }) => {
         if (!canChangeEnvironment) return false;

@@ -167,6 +167,10 @@
       "types": "./src/state/git.ts",
       "default": "./src/state/git.ts"
     },
+    "./state/thread-notes": {
+      "types": "./src/state/threadNotes.ts",
+      "default": "./src/state/threadNotes.ts"
+    },
     "./state/command-output": {
       "types": "./src/state/commandOutput.ts",
       "default": "./src/state/commandOutput.ts"
