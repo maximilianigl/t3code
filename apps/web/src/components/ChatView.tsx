@@ -153,7 +153,11 @@ import {
   useRightPanelStore,
 } from "../rightPanelStore";
 import { isPreviewSupportedInRuntime, useThreadPreviewState } from "../previewStateStore";
-import { subscribeThreadNotesToggle, useThreadNotesStore } from "../threadNotesStore";
+import {
+  isThreadNotesFocused,
+  subscribeThreadNotesToggle,
+  useThreadNotesStore,
+} from "../threadNotesStore";
 import { previewRuntimeTabId } from "../browser/previewRuntimeTabId";
 import { ThreadPreviewMiniPlayer } from "./preview/ThreadPreviewMiniPlayer";
 import { usePreviewSession } from "./preview/usePreviewSession";
@@ -1951,13 +1955,12 @@ export default function ChatView(props: ChatViewProps) {
     visiblePullRequestCount,
     onDiffPanelOpen,
   });
-  // Notes live in the thread panel, so showing them opens it, and the shortcut only hides
-  // notes the user can see.
+  // Notes live in the thread panel, so reaching them opens it. From the notes, the same
+  // shortcut hands the keyboard back to the composer.
   const toggleThreadNotes = () => {
     if (!activeThreadRef) return;
-    const notes = useThreadNotesStore.getState();
-    if (notes.visible && threadPanelOpen) {
-      notes.hide();
+    if (isThreadNotesFocused()) {
+      focusComposer();
       return;
     }
     if (!threadPanelOpen) {
@@ -1965,7 +1968,7 @@ export default function ChatView(props: ChatViewProps) {
         .getState()
         .setThreadPanelOpen(activeThreadRef, threadPanelPresentation, true);
     }
-    notes.show();
+    useThreadNotesStore.getState().requestFocus();
   };
   const toggleThreadNotesStable = useStableCallback(toggleThreadNotes);
   useEffect(() => subscribeThreadNotesToggle(toggleThreadNotesStable), [toggleThreadNotesStable]);

@@ -23,7 +23,6 @@ import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import { ThreadAutomationsPanel } from "./ThreadAutomationsPanel";
 import { ThreadRelationshipsPanel } from "./ThreadRelationshipsControl";
 import { ThreadNotesPanel } from "./ThreadNotesPanel";
-import { useThreadNotesStore } from "../../threadNotesStore";
 
 const GitActionsControl = memo(BaseGitActionsControl);
 
@@ -76,7 +75,6 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
     props.activeProjectScripts ? props.gitCwd : null,
   );
   const activeThreadRef = { environmentId: props.environmentId, threadId: props.threadId };
-  const notesVisible = useThreadNotesStore((state) => state.visible);
   const branchToolbarProps = {
     showGitControls: props.isGitRepo,
     environmentId: props.environmentId,
@@ -196,7 +194,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
             />
           ) : null}
 
-          {notesVisible && !props.draftId ? (
+          {!props.draftId ? (
             <ThreadNotesPanel
               key={`${props.environmentId}:${props.threadId}`}
               environmentId={props.environmentId}

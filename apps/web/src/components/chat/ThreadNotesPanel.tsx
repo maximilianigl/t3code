@@ -1,8 +1,9 @@
 import { useAtomValue } from "@effect/atom-react";
 import { isAtomCommandInterrupted } from "@t3tools/client-runtime/state/runtime";
 import { THREAD_NOTES_MAX_LENGTH, type EnvironmentId, type ThreadId } from "@t3tools/contracts";
-import { XIcon } from "lucide-react";
+import { isMacPlatform } from "@t3tools/shared/keybindings";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import ChatMarkdown from "../ChatMarkdown";
 import { setMarkdownTaskChecked } from "../files/filePreviewMode";
@@ -12,9 +13,8 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { useThreadNotesStore } from "../../threadNotesStore";
 import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
+import { toggleTaskLines } from "./threadNotesEditing";
 
 const SAVE_DELAY_MS = 600;
 
@@ -33,7 +33,6 @@ export function ThreadNotesPanel(props: {
   );
   const canEdit = useAtomValue(threadNotesEnvironment.setNotes.permissionAtom(environmentId));
   const setNotes = useAtomCommand(threadNotesEnvironment.setNotes, { reportFailure: false });
-  const hide = useThreadNotesStore((state) => state.hide);
   const focusPending = useThreadNotesStore((state) => state.focusPending);
 
   // What the user typed since the pad opened. The server's copy shows until then.
@@ -92,24 +91,6 @@ export function ThreadNotesPanel(props: {
       headingId="thread-details-notes-heading"
       title="Notes"
       data-thread-notes-panel
-      actions={
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <ThreadDetailsControl
-                size="icon-xs"
-                variant="ghost"
-                part="icon"
-                aria-label="Hide notes"
-                onClick={hide}
-              >
-                <XIcon className="size-3.5" />
-              </ThreadDetailsControl>
-            }
-          />
-          <TooltipPopup>Hide notes</TooltipPopup>
-        </Tooltip>
-      }
     >
       <div className="px-1.5">
         {query.error !== null && !loaded ? (
@@ -129,10 +110,27 @@ export function ThreadNotesPanel(props: {
               setEditing(false);
             }}
             onKeyDown={(event) => {
-              if (event.key !== "Escape") return;
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.blur();
+                return;
+              }
+              const mod = isMacPlatform(navigator.platform)
+                ? event.metaKey && !event.ctrlKey
+                : event.ctrlKey && !event.metaKey;
+              if (!mod || event.shiftKey || event.altKey || event.key.toLowerCase() !== "l") return;
               event.preventDefault();
               event.stopPropagation();
-              event.currentTarget.blur();
+              const textarea = event.currentTarget;
+              const toggled = toggleTaskLines(
+                textarea.value,
+                textarea.selectionStart,
+                textarea.selectionEnd,
+              );
+              // A controlled textarea moves the caret to the end when code sets its value.
+              flushSync(() => change(toggled.text));
+              textarea.setSelectionRange(toggled.selectionStart, toggled.selectionEnd);
             }}
           />
         ) : markdown.trim() === "" ? (

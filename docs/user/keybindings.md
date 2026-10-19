@@ -165,8 +165,9 @@ through the pages you have visited, like a browser's back and forward buttons.
 `thread.rename` starts editing the active thread's title. Its default shortcut
 is `mod+shift+r`, and it does not run while the terminal has focus.
 
-`threadNotes.toggle` shows or hides the active thread's [notes](./thread-notes.md).
-Its default shortcut is `mod+shift+u`, and it does not run while the terminal has focus.
+`threadNotes.toggle` moves the keyboard into the active thread's [notes](./thread-notes.md), and
+back to the composer when the notes already have it. Its default shortcut is `mod+shift+u`, and it
+does not run while the terminal has focus.
 
 ## Reserved shortcuts
 

@@ -1276,7 +1276,7 @@ function OpenCommandPaletteDialog(props: {
     actionItems.push({
       kind: "action",
       value: "toggle-thread-notes",
-      title: "Toggle thread notes",
+      title: "Focus thread notes",
       searchTerms: ["notes", "scratch", "memo", "markdown"],
       icon: <NotebookPenIcon className={ITEM_ICON_CLASS} />,
       shortcutCommand: "threadNotes.toggle",
