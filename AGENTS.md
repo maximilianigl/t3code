@@ -92,7 +92,7 @@ Use this sequence when updating `ssh ws` to the newest upstream T3 plus this for
 
 1. Commit the local work, fetch upstream, and rebase the fork branch onto `upstream/main`. Resolve and verify the rebase before building.
 2. Give the fork a fresh `-migl.N` version in the server, desktop, web, and contracts package manifests.
-3. Build and package the server with `vp run --filter t3 build` followed by `node scripts/pack-fork-server.mjs`.
+3. Build and package the server with `vp run --filter t3 build` followed by `node scripts/pack-fork-server.mjs`. Then build the Linux CLI archive the deploy seeds: `VP_NODE_VERSION=26.8.2 node apps/server/scripts/cli.ts build-exe --target linux-x64` (the single executable needs Node 25.7+; match `release-desktop.yml`) and `node scripts/build-cli-archive.ts --platform linux --arch x64 --version <version> --output-dir release`. The archive needs a Linux `t3-resource-monitor`; when `native/resource-monitor` is unchanged, pass `--resource-monitor-dir` pointing at the `resource-monitor` folder extracted from the previous archive.
 4. Run `scripts/deploy-fork-server.sh ws`. This installs the fork globally for Desktop SSH launches, seeds the versioned runtime, and updates the `t3code.service` user unit.
 5. Verify `t3 --version`, `systemctl --user status t3code.service`, and `~/.t3/userdata/server-runtime.json` all identify the new runtime.
 

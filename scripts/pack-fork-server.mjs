@@ -28,7 +28,15 @@ const fffNodeDir = NodeFS.realpathSync(
 const fffNodePackage = JSON.parse(
   NodeFS.readFileSync(NodePath.join(fffNodeDir, "package.json"), "utf8"),
 );
-const dependencies = resolveCatalogDependencies(pkg.dependencies, catalog, "apps/server");
+// Workspace packages (providers, source-control hosts) are bundled into dist,
+// and npm cannot install the `workspace:` protocol, so they stay out.
+const dependencies = resolveCatalogDependencies(
+  Object.fromEntries(
+    Object.entries(pkg.dependencies).filter(([, spec]) => !spec.startsWith("workspace:")),
+  ),
+  catalog,
+  "apps/server",
+);
 const manifest = {
   name: pkg.name,
   repository: pkg.repository,
