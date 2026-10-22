@@ -23,6 +23,7 @@ import {
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { connectionStatusText } from "@t3tools/client-runtime/connection";
 import { resolveThreadReferenceCopyTarget } from "@t3tools/client-runtime/thread-reference";
+import { makeSideChatListingFilter } from "@t3tools/client-runtime/state/thread-workflows";
 import {
   canPreloadBrowsePath,
   createBrowseNavigationCoordinator,
@@ -58,6 +59,7 @@ import {
   FolderPlusIcon,
   MessageSquareDashedIcon,
   LinkIcon,
+  MessageCircleIcon,
   MessageSquareIcon,
   PaletteIcon,
   RotateCcwIcon,
@@ -87,6 +89,7 @@ import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { useOpenPanelPullRequestUrl } from "../hooks/useOpenPanelPullRequestUrl";
+import { useSideChatActions } from "../hooks/useSideChatActions";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import {
   composerPromptLink,
@@ -543,6 +546,14 @@ function OpenCommandPaletteDialog(props: {
         ? scopeThreadRef(activeThread.environmentId, activeThread.id)
         : null;
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(referenceThreadRef);
+  const sideChatEnvironmentId =
+    pathname === "/pull-requests" ? null : (activeThread?.environmentId ?? null);
+  const sideChatThreadId = pathname === "/pull-requests" ? null : (activeThread?.id ?? null);
+  const sideChatParentRef =
+    sideChatEnvironmentId !== null && sideChatThreadId !== null
+      ? scopeThreadRef(sideChatEnvironmentId, sideChatThreadId)
+      : null;
+  const sideChatActions = useSideChatActions(sideChatParentRef);
   const activeThreadServerConfig = useServerConfigs().get(
     activeThread?.environmentId ?? ("" as EnvironmentId),
   );
@@ -827,17 +838,22 @@ function OpenCommandPaletteDialog(props: {
           ),
         )
       : null;
+    // Side chats belong to their parent, unless the parent is gone.
+    const listable = makeSideChatListingFilter(threads);
     const latestThread = groupedProjectKeys
       ? (sortThreads(
           threads.filter(
             (thread) =>
               thread.archivedAt === null &&
+              listable(thread) &&
               groupedProjectKeys.has(`${thread.environmentId}:${thread.projectId}`),
           ),
           clientSettings.sidebarThreadSortOrder,
         )[0] ?? null)
       : getLatestThreadForProject(
-          threads.filter((thread) => thread.environmentId === project.environmentId),
+          threads.filter(
+            (thread) => thread.environmentId === project.environmentId && listable(thread),
+          ),
           project.id,
           clientSettings.sidebarThreadSortOrder,
         );
@@ -1352,6 +1368,21 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
+  if (sideChatParentRef !== null && sideChatActions.supported) {
+    actionItems.push({
+      kind: "action",
+      value: "action:side-chat",
+      searchTerms: ["side chat", "btw", "aside", "side question", "ask"],
+      title: "Side chat",
+      description: "Reopen the latest side chat, or start one",
+      icon: <MessageCircleIcon className={ITEM_ICON_CLASS} />,
+      shortcutCommand: "thread.sideChat",
+      run: async () => {
+        await sideChatActions.run("");
+      },
+    });
+  }
+
   if (
     activeThread !== null &&
     threadPullRequestLinkMode(activeThreadServerConfig?.environment.capabilities) !== "unsupported"
@@ -1777,8 +1808,11 @@ function OpenCommandPaletteDialog(props: {
       cwd,
     );
     if (existing) {
+      const listable = makeSideChatListingFilter(threads);
       const latestThread = getLatestThreadForProject(
-        threads.filter((thread) => thread.environmentId === existing.environmentId),
+        threads.filter(
+          (thread) => thread.environmentId === existing.environmentId && listable(thread),
+        ),
         existing.id,
         clientSettings.sidebarThreadSortOrder,
       );

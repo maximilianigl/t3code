@@ -83,6 +83,12 @@ export interface TimelineRowSharedState {
         readonly feedback: OrchestrationV2ObserverNoteFeedback | null;
       }) => void)
     | undefined;
+  /** Present when side chats are available: the "Ask in side chat" button beside fork. */
+  onAskAboutResponse:
+    | ((input: { readonly sourceThreadId: ThreadId; readonly runId: RunId }) => Promise<void>)
+    | undefined;
+  /** Why "Ask in side chat" cannot share history yet; null when it can. */
+  askAboutResponseDisabledReason: string | null;
   onRollbackCheckpoint: (input: {
     readonly checkpointId: string;
     readonly scopeId: string;

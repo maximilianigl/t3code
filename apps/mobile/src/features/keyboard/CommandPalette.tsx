@@ -7,6 +7,7 @@ import {
   type EnvironmentThreadSearchMatch,
   type ShownOrder,
 } from "@t3tools/client-runtime/state/thread-search";
+import { makeSideChatListingFilter } from "@t3tools/client-runtime/state/thread-workflows";
 import { THREAD_JUMP_KEYBINDING_COMMANDS } from "@t3tools/contracts";
 import {
   foldSearchQuery,
@@ -373,10 +374,13 @@ export function CommandPalette(props: {
           },
         }),
     }));
+    const listable = makeSideChatListingFilter(threads);
     const threadItems: CommandPaletteItem[] = threads
       .filter(
         (thread) =>
-          thread.archivedAt === null && thread.lineage.relationshipToParent !== "subagent",
+          thread.archivedAt === null &&
+          thread.lineage.relationshipToParent !== "subagent" &&
+          listable(thread),
       )
       .map((thread) => {
         const project = projectByKey.get(scopedProjectKey(thread.environmentId, thread.projectId));

@@ -29,6 +29,7 @@ import {
 } from "@t3tools/contracts";
 import { filterFilesystemBrowseEntries } from "@t3tools/client-runtime/state/filesystem";
 import { type ReactNode } from "react";
+import { makeSideChatListingFilter } from "@t3tools/client-runtime/state/thread-workflows";
 import { formatRelativeTimeLabel } from "../timestampFormat";
 import { type Project, type SidebarThreadSummary, type Thread } from "../types";
 import { isSidebarSubagentThread } from "./Sidebar.logic";
@@ -375,7 +376,12 @@ export type BuildThreadActionItemsThread = Pick<
   Partial<
     Pick<
       SidebarThreadSummary,
-      "pullRequests" | "linkedPullRequest" | "branchPullRequest" | "opens" | "latestUserMessageAt"
+      | "pullRequests"
+      | "linkedPullRequest"
+      | "branchPullRequest"
+      | "opens"
+      | "latestUserMessageAt"
+      | "sideChat"
     >
   > & {
     updatedAt: string;
@@ -394,8 +400,9 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
   environmentLabelOf?: (thread: TThread) => string | null;
 }): CommandPaletteActionItem[] {
   // Callers order these: recents by last use, search results by rank.
+  const listable = makeSideChatListingFilter(input.threads);
   const visibleThreads = input.threads.filter(
-    (thread) => thread.archivedAt === null && !isSidebarSubagentThread(thread),
+    (thread) => thread.archivedAt === null && !isSidebarSubagentThread(thread) && listable(thread),
   );
 
   return visibleThreads.map((thread) => {

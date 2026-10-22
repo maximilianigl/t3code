@@ -409,6 +409,11 @@ export const OrchestrationV2AppThread = Schema.Struct({
   branchPullRequest: Schema.optional(Schema.NullOr(ThreadLinkedPullRequest)),
   activeProviderThreadId: Schema.NullOr(ProviderThreadId),
   historyOrigin: Schema.optional(OrchestrationV2ThreadHistoryOrigin),
+  /**
+   * Presentation, not lineage: open in the right panel, stay out of the sidebar,
+   * discard on close. How the thread relates to its parent stays in `lineage`.
+   */
+  sideChat: Schema.optional(Schema.Boolean),
   lineage: OrchestrationV2AppThreadLineage,
   forkedFrom: Schema.NullOr(
     Schema.Union([
@@ -1920,6 +1925,11 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   linkedPullRequest: Schema.optional(Schema.NullOr(ThreadLinkedPullRequest)),
   pullRequests: Schema.optional(Schema.Array(ThreadPullRequestLink)),
   branchPullRequest: Schema.optional(Schema.NullOr(ThreadLinkedPullRequest)),
+  /**
+   * Presentation, not lineage: open in the right panel, stay out of the sidebar,
+   * discard on close. How the thread relates to its parent stays in `lineage`.
+   */
+  sideChat: Schema.optional(Schema.Boolean),
   lineage: OrchestrationV2AppThreadLineage,
   forkedFrom: Schema.NullOr(OrchestrationV2AppThread.fields.forkedFrom),
   activeProviderThreadId: Schema.NullOr(ProviderThreadId),
@@ -2728,6 +2738,12 @@ export const OrchestrationV2Command = Schema.Union([
     interactionMode: ProviderInteractionMode,
     branch: Schema.NullOr(TrimmedNonEmptyString),
     worktreePath: Schema.NullOr(TrimmedNonEmptyString),
+    /**
+     * Link the new thread under an existing one without transferring any
+     * context: lineage records the parent but no relationship kind.
+     */
+    parentThreadId: Schema.optional(ThreadId),
+    sideChat: Schema.optional(Schema.Boolean),
     importedNativeThread: Schema.optional(
       Schema.Struct({
         ref: Schema.Struct({
@@ -2764,6 +2780,10 @@ export const OrchestrationV2Command = Schema.Union([
     type: Schema.Literal("thread.delete"),
     commandId: CommandId,
     threadId: ThreadId,
+    /** Delete only while no message or run has landed on the thread. */
+    expectedEmpty: Schema.optional(Schema.Boolean),
+    /** Delete only while the thread is still a side chat; a promoted one stays. */
+    expectedSideChat: Schema.optional(Schema.Boolean),
   }),
   Schema.Struct({
     type: Schema.Literal("thread.settle"),
@@ -2863,6 +2883,8 @@ export const OrchestrationV2Command = Schema.Union([
     limitRecovery: Schema.optional(Schema.NullOr(OrchestrationV2LimitRecoveryUpdate)),
     /** Link (object) or unlink (null) a pull request; absent leaves it unchanged. */
     linkedPullRequest: Schema.optional(Schema.NullOr(ThreadLinkedPullRequest)),
+    /** Promote (false) a side chat to an ordinary thread, or mark one; absent leaves it unchanged. */
+    sideChat: Schema.optional(Schema.Boolean),
   }),
   Schema.Struct({
     type: Schema.Literal("thread.pull-request.link"),
@@ -3110,6 +3132,9 @@ export const OrchestrationV2Command = Schema.Union([
     targetThreadId: ThreadId,
     sourcePoint: OrchestrationV2ThreadForkSourcePoint,
     title: Schema.optional(TrimmedNonEmptyString),
+    sideChat: Schema.optional(Schema.Boolean),
+    /** Overrides the runtime mode the fork would otherwise copy from its source. */
+    runtimeMode: Schema.optional(RuntimeMode),
     createdAt: Schema.optional(Schema.DateTimeUtc),
   }),
   Schema.Struct({
@@ -3572,6 +3597,19 @@ export const OrchestrationV2ThreadStreamItem = withRecordIdTable(
 );
 export type OrchestrationV2ThreadStreamItem = typeof OrchestrationV2ThreadStreamItem.Type;
 
+/**
+ * Why a command was refused, where a client acts on it. A delete sent with
+ * `expectedEmpty` found messages or runs (`thread_not_empty`), or one sent with
+ * `expectedSideChat` found the thread promoted (`thread_not_side_chat`), so the
+ * thread stays.
+ */
+export const OrchestrationV2DispatchRejectionReason = Schema.Literals([
+  "thread_not_empty",
+  "thread_not_side_chat",
+]);
+export type OrchestrationV2DispatchRejectionReason =
+  typeof OrchestrationV2DispatchRejectionReason.Type;
+
 export class OrchestrationV2DispatchCommandError extends Schema.TaggedError<OrchestrationV2DispatchCommandError>()(
   "OrchestrationV2DispatchCommandError",
   {
@@ -3579,6 +3617,7 @@ export class OrchestrationV2DispatchCommandError extends Schema.TaggedError<Orch
     commandType: Schema.String,
     message: Schema.String,
     detail: Schema.optional(Schema.String),
+    reason: Schema.optional(OrchestrationV2DispatchRejectionReason),
     cause: Schema.optional(Schema.Defect()),
   },
 ) {}
