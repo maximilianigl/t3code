@@ -1093,7 +1093,7 @@ it.effect("forks a side chat from the last finished run while the source is mid-
         expectedEmpty: true,
       }),
     );
-    assert.equal(notEmpty._tag, "OrchestratorDispatchError");
+    assert.equal(notEmpty._tag, "OrchestratorThreadNotEmptyError");
     assert.equal(dispatchRejectionReason(notEmpty), "thread_not_empty");
     assert.isNull((yield* projections.getThread(sourceId)).deletedAt);
   }).pipe(Effect.provide(layerTest)),
