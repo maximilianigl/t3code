@@ -286,7 +286,7 @@ thread under another one without any context transfer: lineage records the paren
 `relationshipToParent` null, so a thread that inherited nothing is never called a fork.
 
 A side chat is an ordinary thread with the `sideChat` flag, which only means "open in the right
-panel, keep out of the sidebar, discard on close". It is either a `thread.fork` at `latest_stable`
+panel, keep out of the sidebar, discard on close while empty". It is either a `thread.fork` at `latest_stable`
 (shared history) or a linked thread (none). The flag does not select a relationship kind, and
 `thread.metadata.update` clears it to promote the thread. Fork copies the source thread, so it
 sets the flag explicitly instead of inheriting it.

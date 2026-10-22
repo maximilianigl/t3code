@@ -148,6 +148,7 @@ describe("side chat logic", () => {
       const withSide = { focusedSideChatId: "side" };
       expect(claims({ ...withSide, command: "modelPicker.toggle" })).toBe(false);
       expect(claims({ ...withSide, command: "composer.increaseEffort" })).toBe(false);
+      expect(claims({ ...withSide, command: "composer.branch" })).toBe(false);
       expect(claims({ ...withSide, command: "rightPanel.toggle" })).toBe(true);
       expect(claims({ ...withSide, command: null })).toBe(true);
       expect(claims({ command: "modelPicker.toggle" })).toBe(true);

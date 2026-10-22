@@ -128,7 +128,7 @@ const SIDE_CHAT_PASSTHROUGH_COMMANDS: ReadonlySet<KeybindingCommand> = new Set([
   "rightPanel.toggleMaximized",
   "threadPanel.toggle",
 ]);
-/** Shortcuts a side chat handles itself: its own run, composer, and queue. */
+/** Shortcuts a side chat handles itself: its own run, composer, toolbar, and queue. */
 export const SIDE_CHAT_OWN_COMMANDS: ReadonlySet<KeybindingCommand> = new Set([
   "thread.stop",
   "modelPicker.toggle",
@@ -136,6 +136,10 @@ export const SIDE_CHAT_OWN_COMMANDS: ReadonlySet<KeybindingCommand> = new Set([
   "composer.increaseEffort",
   "composer.decreaseEffort",
   "composer.mode",
+  "composer.host",
+  "composer.workspace",
+  "composer.branch",
+  "composer.previousWorktree",
   "thread.steerQueuedMessage",
   "thread.editQueuedMessage",
 ]);
