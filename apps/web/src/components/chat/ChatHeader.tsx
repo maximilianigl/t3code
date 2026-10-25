@@ -13,6 +13,7 @@ import { ChevronDownIcon } from "lucide-react";
 import {
   memo,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -168,15 +169,14 @@ export const ChatHeader = memo(function ChatHeader({
       title: activeThreadTitle,
     });
   };
+  // Only a new shortcut request starts a rename, not a re-render with the same request.
   const handledRenameRequestIdRef = useRef(renameRequestId);
+  const startRenameFromShortcut = useEffectEvent(startRename);
   useEffect(() => {
     if (handledRenameRequestIdRef.current === renameRequestId) return;
     handledRenameRequestIdRef.current = renameRequestId;
-    startRename();
-  }, [
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Only a new shortcut request starts a rename.
-    renameRequestId,
-  ]);
+    startRenameFromShortcut();
+  }, [renameRequestId]);
   const commitRename = (title: string) => {
     setRenaming(null);
     if (!readEnvironmentScope(activeThreadEnvironmentId, AuthOrchestrationOperateScope)) return;

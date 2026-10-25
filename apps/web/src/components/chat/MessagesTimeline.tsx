@@ -113,7 +113,11 @@ import { V2EventTimelineRow } from "./TimelineV2EventRow";
 import { useTimelinePositionRestore } from "./useTimelinePositionRestore";
 import { useThreadFindPositionReader } from "./useThreadFindPositionReader";
 import { ThreadActivityAnnouncer } from "./ThreadActivityAnnouncer";
-import { useStableTimelineRuns, useIncrementalTimelineRows, useStableRows } from "./useTimelineRows";
+import {
+  useStableTimelineRuns,
+  useIncrementalTimelineRows,
+  useStableRows,
+} from "./useTimelineRows";
 
 function timelineListStateFor(identity: string): {
   readonly identity: string;

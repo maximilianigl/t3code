@@ -408,11 +408,9 @@ export function BranchToolbarBranchSelector({
     setIsBranchMenuOpen(false);
     onComposerFocusRequest?.();
 
-    // A branch without a worktree gets one (reused if the server finds one the
-    // ref list missed, created otherwise) instead of being checked out in
-    // place: the current directory may be the main checkout or another
-    // thread's worktree, and neither should move because a draft picked a
-    // branch.
+    // Hand the draft the branch's worktree (reused, or created) instead of checking the branch
+    // out in place: the current directory may be the main checkout or another thread's
+    // worktree, and neither should move because a draft picked a branch.
     runBranchAction(async () => {
       const previousBranch = resolvedActiveBranch;
       setOptimisticBranch(selectedBranchName);

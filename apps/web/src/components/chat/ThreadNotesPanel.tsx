@@ -54,7 +54,7 @@ export function ThreadNotesPanel(props: {
     void setNotes({ environmentId, input: { threadId, markdown: pending } }).then((result) => {
       if (result._tag === "Success" || isAtomCommandInterrupted(result)) return;
       // Kept for the next edit or blur, so a dropped save is retried rather than lost.
-      unsaved.current ??= pending;
+      if (unsaved.current === null) unsaved.current = pending;
       toastManager.add({ type: "error", title: "Could not save notes" });
     });
   };

@@ -6265,8 +6265,10 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         Effect.mapError((cause) => new ProjectionStoreSetupError({ cause })),
       );
 
-    const getRecentObserverNotes: ProjectionStoreV2Shape["getRecentObserverNotes"] = (limit) =>
-      Effect.gen(function* () {
+    const getRecentObserverNotes: ProjectionStoreV2Shape["getRecentObserverNotes"] = Effect.fn(
+      "ProjectionStore.getRecentObserverNotes",
+    )(
+      function* (limit) {
         const rows = yield* sql<{ readonly note_json: string }>`
           SELECT json_extract(payload_json, '$.observerNote') AS note_json
           FROM orchestration_v2_projection_runs
@@ -6275,7 +6277,9 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           LIMIT ${limit}
         `;
         return yield* Effect.forEach(rows, (row) => decodeObserverNote(row.note_json));
-      }).pipe(Effect.mapError((cause) => new ProjectionStoreSetupError({ cause })));
+      },
+      Effect.mapError((cause) => new ProjectionStoreSetupError({ cause })),
+    );
 
     const getThreadWorktreePaths: ProjectionStoreV2Shape["getThreadWorktreePaths"] = (options) =>
       sql<{ readonly thread_id: string; readonly worktree_path: string }>`

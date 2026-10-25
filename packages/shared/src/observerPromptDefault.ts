@@ -1,5 +1,6 @@
 // Claude Code's built-in "You should know" mod prompt (cc-plugin-you-should-know, Claude Code
 // 2.1.310), copied verbatim. {{seen}} and {{known}} mark where the mod inserts its two lists.
+/* oxlint-disable t3code/no-em-dash-copy -- a model prompt kept verbatim, not product copy */
 export const DEFAULT_OBSERVER_PROMPT = [
   '<system-reminder>This is a side request from the user (via Claude Code\'s "You should know" feature). You must answer it directly in this single response.',
   "IMPORTANT CONTEXT:",

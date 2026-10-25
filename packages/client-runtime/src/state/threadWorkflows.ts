@@ -239,7 +239,7 @@ export function resolveSideChatHistoryAvailability(
 
 /** What a side chat can see of its parent, for the panel header chip. */
 export function describeSideChatVisibility(input: {
-  readonly forkedFrom: OrchestrationV2ThreadProjection["thread"]["forkedFrom"];
+  readonly forkedFrom: Projection["thread"]["forkedFrom"];
   readonly parentRuns: ReadonlyArray<Pick<Run, "id" | "ordinal">> | null;
 }): string {
   if (input.forkedFrom?.type !== "run") return "Sees no history";
@@ -257,11 +257,9 @@ export interface SideChatListingShell {
 }
 
 /**
- * Builds the sidebar and palette test for "list this thread". A side chat stays
- * out while its parent is around to list it; once the parent leaves the active
- * list, a surviving side chat shows up like an ordinary thread instead of
- * vanishing. Archived and deleted parents both leave that list, so archiving a
- * parent lists its side chats until it is unarchived.
+ * The sidebar and palette test for "list this thread". A side chat stays out while its parent
+ * is listed; once the parent leaves the active list (archived or deleted), the side chat shows
+ * up like an ordinary thread instead of vanishing.
  */
 export function makeSideChatListingFilter<T extends SideChatListingShell>(
   threads: ReadonlyArray<T>,

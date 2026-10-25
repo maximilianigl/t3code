@@ -36,7 +36,7 @@ export class ObserverReactor extends Context.Service<
   }
 >()("t3/orchestration-v2/ObserverReactor") {}
 
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.gen(function* () {
   const engine = yield* Orchestrator.OrchestratorV2;
   const projections = yield* ProjectionStore.ProjectionStoreV2;

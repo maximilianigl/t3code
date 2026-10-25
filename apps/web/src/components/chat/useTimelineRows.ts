@@ -12,7 +12,9 @@ import {
 
 const EMPTY_TIMELINE_RUNS: ReadonlyArray<TimelineRun> = [];
 
-export function useStableTimelineRuns(runs: ReadonlyArray<TimelineRun>): ReadonlyArray<TimelineRun> {
+export function useStableTimelineRuns(
+  runs: ReadonlyArray<TimelineRun>,
+): ReadonlyArray<TimelineRun> {
   const [state, setState] = useState<{
     readonly source: ReadonlyArray<TimelineRun> | null;
     readonly signature: string;

@@ -2984,11 +2984,9 @@ export const make = Effect.gen(function* () {
     }).pipe(Effect.ensuring(invalidateStatus(input.cwd)));
   }, asUserAction);
 
-  // The branch-level sibling of preparePullRequestThread: hand a thread the
-  // worktree its branch already lives in, or create one checked out to that
-  // branch. Unlike the pull request flow there is no authoritative remote head
-  // to refresh toward, so a reused worktree is handed back exactly as it
-  // stands.
+  // Hand a thread the worktree its branch already lives in, or create one. Unlike the pull
+  // request flow there is no remote head to refresh toward, so a reused worktree comes back
+  // exactly as it stands.
   const prepareBranchThread: GitManager["Service"]["prepareBranchThread"] = Effect.fn(
     "prepareBranchThread",
   )(function* (input) {

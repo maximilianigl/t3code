@@ -103,8 +103,8 @@ export const make = Effect.gen(function* () {
     Effect.orElseSucceed((): ReadonlyArray<ExternalLinkRule> => []),
   );
 
-  const launch = (command: ReadonlyArray<string>) =>
-    Effect.gen(function* () {
+  const launch = Effect.fn("DesktopExternalLinks.launch")(
+    function* (command: ReadonlyArray<string>) {
       const [executable = "", ...args] = command;
       const handle = yield* ChildProcess.make(executable, args, {
         stdin: "ignore",
@@ -118,17 +118,20 @@ export const make = Effect.gen(function* () {
         onNone: () => true,
         onSome: (code) => code === 0,
       });
-    }).pipe(
-      Effect.scoped,
-      Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
-      Effect.tapError((error) =>
-        Effect.logWarning("External link command failed; opening in the default browser.", {
-          command,
-          error,
-        }),
+    },
+    (effect, command) =>
+      effect.pipe(
+        Effect.scoped,
+        Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+        Effect.tapError((error) =>
+          Effect.logWarning("External link command failed; opening in the default browser.", {
+            command,
+            error,
+          }),
+        ),
+        Effect.orElseSucceed(() => false),
       ),
-      Effect.orElseSucceed(() => false),
-    );
+  );
 
   return DesktopExternalLinks.of({
     open: (rawUrl) =>
