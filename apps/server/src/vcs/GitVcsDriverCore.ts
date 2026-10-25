@@ -2067,7 +2067,10 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     }
 
     if (statusResult.exitCode !== 0) {
-      if (isNonRepositoryGitStderr(statusResult.stderr)) {
+      const nonRepositoryStderr = isNonRepositoryGitStderr(statusResult.stderr);
+      // Once the index path resolved, "not a git repository" names a nested repository,
+      // typically a submodule whose .git points at a missing directory, not this checkout.
+      if (nonRepositoryStderr && indexResult.exitCode !== 0) {
         return NON_REPOSITORY_STATUS_DETAILS;
       }
       return yield* new GitCommandError({
@@ -2076,7 +2079,9 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           cwd,
           args: statusArgs,
         }),
-        detail: "Git status failed.",
+        detail: nonRepositoryStderr
+          ? "Git status failed because a submodule or nested repository is broken."
+          : "Git status failed.",
         exitCode: statusResult.exitCode,
         stdoutLength: statusResult.stdout.length,
         stderrLength: statusResult.stderr.length,

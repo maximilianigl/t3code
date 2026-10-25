@@ -2350,6 +2350,23 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
         }),
     );
 
+    it.effect("keeps a checkout with a broken submodule a repository", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        yield* initRepoWithCommit(cwd);
+        const head = (yield* git(cwd, ["rev-parse", "HEAD"])).trim();
+        yield* git(cwd, ["update-index", "--add", "--cacheinfo", `160000,${head},sub`]);
+        yield* git(cwd, ["commit", "-m", "add submodule"]);
+        // A submodule clone that failed after writing its gitdir link.
+        yield* writeTextFile(cwd, "sub/.git", "gitdir: ../.git/modules/sub\n");
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+
+        const result = yield* driver.statusDetailsLocal(cwd).pipe(Effect.result);
+        assert.isTrue(Result.isFailure(result));
+        if (Result.isFailure(result)) assert.include(result.failure.detail, "submodule");
+      }),
+    );
+
     it.effect("reads Changes totals with untracked files when requested", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTmpDir();
