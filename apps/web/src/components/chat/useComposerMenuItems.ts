@@ -55,7 +55,6 @@ export function useComposerMenuItems({
   pullRequestRepository,
   threadPullRequests,
   planModeUiEnabled,
-  sideCommandsAvailable,
   compactSlashCommandAvailable,
   selectedProvider,
   selectedProviderSkills,
@@ -70,8 +69,6 @@ export function useComposerMenuItems({
   readonly pullRequestRepository: string | null;
   readonly threadPullRequests: ReadonlyArray<ThreadPullRequestLink> | undefined;
   readonly planModeUiEnabled: boolean;
-  /** Offers `/side` and `/btw` at the start of a prompt the side chat command can take. */
-  readonly sideCommandsAvailable: boolean;
   readonly compactSlashCommandAvailable: boolean;
   readonly selectedProvider: ProviderDriverKind;
   readonly selectedProviderSkills: ServerProvider["skills"];
@@ -190,24 +187,6 @@ export function useComposerMenuItems({
           label: "/model",
           description: "Switch response model for this thread",
         },
-        ...(sideCommandsAvailable && composerTrigger.rangeStart === 0
-          ? ([
-              {
-                id: "slash:side",
-                type: "slash-command",
-                command: "side",
-                label: "/side",
-                description: "Ask a side question without interrupting this thread",
-              },
-              {
-                id: "slash:btw",
-                type: "slash-command",
-                command: "btw",
-                label: "/btw",
-                description: "Same as /side. Add a question to send it right away",
-              },
-            ] as const)
-          : []),
         ...(planModeUiEnabled
           ? ([
               {

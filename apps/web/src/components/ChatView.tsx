@@ -1052,7 +1052,6 @@ export default function ChatView(props: ChatViewProps) {
     // focused side chat keeps its composer in the panel there.
     panelBesideColumn: rightPanelOpen && !shouldUsePlanSidebarSheet && !rightPanelMaximized,
   });
-  const runSideChatCommand = sideChats.run;
   const inlineRightPanelOwnsTitleBar = rightPanelOpen && !shouldUsePlanSidebarSheet;
   const [threadPanelPresentation, setThreadPanelPresentation] =
     useState<ThreadPanelPresentation>("inline");
@@ -2841,7 +2840,7 @@ export default function ChatView(props: ChatViewProps) {
       "thread.sideChat": ({ event }) => {
         // Not offered here (drafts, older servers, inside a side chat): leave the key alone.
         if (!sideChatsAvailable) return false;
-        if (!event.repeat) void runSideChatCommand("");
+        if (!event.repeat) void sideChats.openOrStart();
       },
       "thread.copyReference": ({ event }) => {
         if (!event.repeat) copyActiveThreadReference();
@@ -3042,7 +3041,6 @@ export default function ChatView(props: ChatViewProps) {
     showPlanFollowUpPrompt,
     usageLimitsKey,
     usageLimitsOffered,
-    runSideChatCommand: sideChatsAvailable ? runSideChatCommand : null,
     openUsageLimits,
     clearUsageLimitsFor,
     needsLoadBalancing,
@@ -3788,9 +3786,6 @@ export default function ChatView(props: ChatViewProps) {
                               resumeCompactionTokens={resumeCompactionTokens}
                               keepFullHistory={keepFullHistory}
                               onToggleKeepFullHistory={toggleKeepFullHistoryStable}
-                              onSideChatCommand={
-                                sideChatsAvailable ? runSideChatCommand : undefined
-                              }
                               onUsageLimitsCommand={
                                 usageLimitsOffered &&
                                 usageLimitsKey !== null &&

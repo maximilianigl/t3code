@@ -1372,13 +1372,13 @@ function OpenCommandPaletteDialog(props: {
     actionItems.push({
       kind: "action",
       value: "action:side-chat",
-      searchTerms: ["side chat", "btw", "aside", "side question", "ask"],
+      searchTerms: ["side chat", "aside", "side question", "ask"],
       title: "Side chat",
       description: "Reopen the latest side chat, or start one",
       icon: <MessageCircleIcon className={ITEM_ICON_CLASS} />,
       shortcutCommand: "thread.sideChat",
       run: async () => {
-        await sideChatActions.run("");
+        await sideChatActions.openOrStart();
       },
     });
   }

@@ -8,7 +8,7 @@ import type { RunId, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
 import { wasDiscardRefused } from "@t3tools/client-runtime/errors";
 
 import { useComposerDraftStore } from "../composerDraftStore";
-import { newMessageId, newThreadId } from "../lib/utils";
+import { newThreadId } from "../lib/utils";
 import { useRightPanelStore } from "../rightPanelStore";
 import { isEmptySideChat, quoteForSideChat, sideChatsOf } from "../sideChat.logic";
 import {
@@ -37,14 +37,12 @@ export interface StartSideChatInput {
   readonly history: SideChatHistoryChoice;
   /** A selection to quote; it lands in the side chat's composer for the user to finish. */
   readonly quote?: string;
-  /** Sent immediately, after the quote when there is one. */
-  readonly question?: string;
   /** Fork at this run instead of the latest stable one. */
   readonly runId?: RunId;
 }
 
 // Parent threads with a side chat being created. Module-level so every caller
-// (keybinding, palette, selection Ask, `/side`) shares one guard per parent.
+// (keybinding, palette, selection Ask, a reply's side chat button) shares one guard per parent.
 const startingSideChatFor = new Set<string>();
 
 function reportFailure(title: string, error: unknown) {
@@ -68,7 +66,6 @@ export function useSideChatActions(parentRef: ScopedThreadRef | null) {
   const projection = useThreadProjection(parentRef)?.projection ?? null;
   const forkFromRun = useAtomCommand(threadEnvironment.forkFromRun, { reportFailure: false });
   const createThread = useAtomCommand(threadEnvironment.create, { reportFailure: false });
-  const startTurn = useAtomCommand(threadEnvironment.startTurn, { reportFailure: false });
   const updateMetadata = useAtomCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
   });
@@ -155,38 +152,8 @@ export function useSideChatActions(parentRef: ScopedThreadRef | null) {
     useRightPanelStore.getState().openAside(ownerRef, childThreadId);
     // The thread's composer talks to the side chat until Escape.
     useSideChatFocusStore.getState().focus(scopedThreadKey(ownerRef), childThreadId);
-    const question = input.question?.trim() ?? "";
-    const quote = input.quote === undefined ? "" : quoteForSideChat(input.quote);
-    if (question.length > 0) {
-      const sent = await startTurn({
-        environmentId: ownerRef.environmentId,
-        input: {
-          threadId: childThreadId,
-          message: {
-            messageId: newMessageId(),
-            role: "user",
-            text: `${quote}${question}`,
-            attachments: [],
-          },
-          titleSeed: question.slice(0, 80),
-          runtimeMode: SIDE_CHAT_READ_ONLY_RUNTIME_MODE,
-          interactionMode: "default",
-          dispatchMode: "auto",
-        },
-      });
-      if (sent._tag === "Failure") {
-        // Keep the question in the side chat so it can be sent again, unless
-        // the user has already typed something else there.
-        const draftStore = useComposerDraftStore.getState();
-        if ((draftStore.getComposerDraft(childRef)?.prompt ?? "") === "") {
-          draftStore.setPrompt(childRef, `${quote}${question}`);
-        }
-        if (!isAtomCommandInterrupted(sent)) {
-          reportFailure("Could not send the question", squashAtomCommandFailure(sent));
-        }
-      }
-    } else if (quote.length > 0) {
-      useComposerDraftStore.getState().setPrompt(childRef, quote);
+    if (input.quote !== undefined) {
+      useComposerDraftStore.getState().setPrompt(childRef, quoteForSideChat(input.quote));
     }
     return childRef;
   };
@@ -223,20 +190,18 @@ export function useSideChatActions(parentRef: ScopedThreadRef | null) {
 
   const lastHistoryChoice = useSideChatPreferenceStore((state) => state.history);
   const rememberHistoryChoice = useSideChatPreferenceStore((state) => state.setHistory);
-  // `/side`, the keybinding, the palette and selection Ask are questions about
-  // this thread, so they share its history whenever they can. Only the `+`
-  // button remembers a "without history" pick.
+  // The keybinding, the palette and selection Ask are questions about this
+  // thread, so they share its history whenever they can. Only the `+` button
+  // remembers a "without history" pick.
   const defaultHistory: SideChatHistoryChoice = historyAvailability.available ? "with" : "without";
 
   /**
-   * `/side`, its keybinding and the palette entry: a question starts a side
-   * chat and sends it, the bare command reopens the latest or starts one.
-   * Resolves false when no side chat could be opened.
+   * The keybinding and the palette entry: reopen the latest side chat, or start
+   * one. Resolves false when no side chat could be opened.
    */
-  const run = useStableCallback(async (question: string): Promise<boolean> => {
-    if (question.length === 0 && reopenLatest()) return true;
-    const childRef = await start({ history: defaultHistory, ...(question ? { question } : {}) });
-    return childRef !== null;
+  const openOrStart = useStableCallback(async (): Promise<boolean> => {
+    if (reopenLatest()) return true;
+    return (await start({ history: defaultHistory })) !== null;
   });
 
   const setAllowEdits = useStableCallback(async (childThreadId: ThreadId, allow: boolean) => {
@@ -333,7 +298,7 @@ export function useSideChatActions(parentRef: ScopedThreadRef | null) {
     historyAvailability,
     canStart,
     start,
-    run,
+    openOrStart,
     defaultHistory,
     open,
     reopenLatest,

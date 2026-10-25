@@ -5,7 +5,6 @@ import {
   chatClaimsShortcut,
   isEmptySideChat,
   isPreviousSideChat,
-  parseSideCommand,
   quoteForSideChat,
   sideChatActivity,
   sideChatsOf,
@@ -108,16 +107,6 @@ describe("side chat logic", () => {
 
   it("quotes multi-line selections", () => {
     expect(quoteForSideChat("one\n\ntwo")).toBe("> one\n>\n> two\n\n");
-  });
-
-  it("parses /side and its /btw alias", () => {
-    expect(parseSideCommand("/btw what does this do?")).toEqual({
-      command: "btw",
-      question: "what does this do?",
-    });
-    expect(parseSideCommand("/side")).toEqual({ command: "side", question: "" });
-    expect(parseSideCommand("/sidebar")).toBeNull();
-    expect(parseSideCommand("read /side")).toBeNull();
   });
 
   describe("shortcut ownership between a thread and its side chat", () => {

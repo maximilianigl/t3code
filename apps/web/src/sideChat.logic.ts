@@ -105,21 +105,6 @@ export function quoteForSideChat(text: string): string {
     .join("\n")}\n\n`;
 }
 
-export interface ParsedSideCommand {
-  readonly command: "side" | "btw";
-  readonly question: string;
-}
-
-/**
- * `/side` and its alias `/btw`. A question after the command is sent
- * immediately; the bare command reopens the latest side chat.
- */
-export function parseSideCommand(prompt: string): ParsedSideCommand | null {
-  const match = /^\/(side|btw)(?:\s+([\s\S]*))?$/.exec(prompt.trim());
-  if (match === null) return null;
-  return { command: match[1] as ParsedSideCommand["command"], question: (match[2] ?? "").trim() };
-}
-
 /** Panel layout and Find shortcuts the host thread still handles while a side chat has focus. */
 const SIDE_CHAT_PASSTHROUGH_COMMANDS: ReadonlySet<KeybindingCommand> = new Set([
   "chat.find",
