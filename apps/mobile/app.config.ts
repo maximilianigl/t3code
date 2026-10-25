@@ -399,9 +399,12 @@ const config: ExpoConfig = {
         android: {
           minSdkVersion: 24,
           // SDK 58 lacks Kotlin 2.3's runtime-inert annotation. R8 needs explicit InputMerger constructors for widgets.
+          // Enriched Markdown loads its display-math view by reflection, but its consumer rule keeps a stale
+          // `views.` package, so R8 strips the class and every $$ block renders empty.
           extraProguardRules: [
             "-dontwarn kotlin.MustUseReturnValues",
             "-keep class * extends androidx.work.InputMerger { <init>(); }",
+            "-keep class com.swmansion.enriched.markdown.segments.MathContainerView { *; }",
           ].join("\n"),
         },
         ios: {
