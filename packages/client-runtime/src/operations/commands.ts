@@ -13,6 +13,7 @@ import {
   type NodeId,
   type OrchestrationV2Command,
   type OrchestrationV2CreationSource,
+  type OrchestrationV2ObserverNoteFeedback,
   type PlanId,
   type ProjectId,
   type ProjectIconOverride,
@@ -121,6 +122,11 @@ export interface VisitThreadInput extends ThreadCommandInput {
 }
 
 export type MarkThreadUnreadInput = ThreadCommandInput;
+
+export interface SetObserverNoteFeedbackInput extends ThreadCommandInput {
+  readonly runId: RunId;
+  readonly feedback: OrchestrationV2ObserverNoteFeedback | null;
+}
 
 export interface UpdateThreadMetadataInput extends ThreadCommandInput {
   readonly limitRecovery?: import("@t3tools/contracts").OrchestrationV2LimitRecoveryUpdate | null;
@@ -601,6 +607,18 @@ export const markThreadUnread = Effect.fn("EnvironmentCommands.markThreadUnread"
     threadId: input.threadId,
   });
 });
+
+export const setObserverNoteFeedback = Effect.fn("EnvironmentCommands.setObserverNoteFeedback")(
+  function* (input: SetObserverNoteFeedbackInput) {
+    return yield* dispatch({
+      type: "run.observer-note.feedback",
+      commandId: yield* allocateCommandId(input),
+      threadId: input.threadId,
+      runId: input.runId,
+      feedback: input.feedback,
+    });
+  },
+);
 
 export const updateThreadMetadata = Effect.fn("EnvironmentCommands.updateThreadMetadata")(
   function* (input: UpdateThreadMetadataInput) {

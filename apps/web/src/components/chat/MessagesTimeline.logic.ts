@@ -14,6 +14,7 @@ import {
   IDLE_COMPACTION_TITLES,
 } from "@t3tools/client-runtime/user-message";
 import type { HandoffTimelineRun } from "@t3tools/client-runtime/handoff";
+import type { OrchestrationV2Run } from "@t3tools/contracts";
 import { renderCodexDirectivesForCopy } from "@t3tools/shared/codexMarkdownDirectives";
 import {
   commandDisplayText,
@@ -2486,11 +2487,14 @@ export function shouldCollapseUserMessage(text: string): boolean {
   );
 }
 
-export function handoffRunsSignature(runs: ReadonlyArray<HandoffTimelineRun>): string {
+export type TimelineRun = HandoffTimelineRun &
+  Pick<OrchestrationV2Run, "threadId" | "observerNote">;
+
+export function timelineRunsSignature(runs: ReadonlyArray<TimelineRun>): string {
   return runs
     .map(
       (run) =>
-        `${run.id}\0${run.providerInstanceId}\0${run.ordinal}\0${run.modelSelection.instanceId}\0${run.modelSelection.model}`,
+        `${run.id}\0${run.providerInstanceId}\0${run.ordinal}\0${run.modelSelection.instanceId}\0${run.modelSelection.model}\0${run.observerNote?.feedback ?? ""}\0${run.observerNote?.learn ?? ""}`,
     )
     .join("\n");
 }

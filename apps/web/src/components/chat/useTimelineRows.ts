@@ -1,35 +1,35 @@
 import { useState } from "react";
 import {
   computeStableMessagesTimelineRows,
-  handoffRunsSignature,
+  timelineRunsSignature,
   type MessagesTimelineRowsInput,
   sameRowsInput,
   deriveMessagesTimelineRowsWithState,
   type StableMessagesTimelineRowsState,
   type MessagesTimelineRow,
+  type TimelineRun,
 } from "./MessagesTimeline.logic";
-import { type HandoffTimelineRun } from "./V2LifecycleRow";
 
-const EMPTY_TIMELINE_RUNS: ReadonlyArray<HandoffTimelineRun> = [];
+const EMPTY_TIMELINE_RUNS: ReadonlyArray<TimelineRun> = [];
 
-export function useStableHandoffRuns(
-  runs: ReadonlyArray<HandoffTimelineRun>,
-): ReadonlyArray<HandoffTimelineRun> {
+export function useStableTimelineRuns(runs: ReadonlyArray<TimelineRun>): ReadonlyArray<TimelineRun> {
   const [state, setState] = useState<{
-    readonly source: ReadonlyArray<HandoffTimelineRun> | null;
+    readonly source: ReadonlyArray<TimelineRun> | null;
     readonly signature: string;
-    readonly value: ReadonlyArray<HandoffTimelineRun>;
+    readonly value: ReadonlyArray<TimelineRun>;
   }>({ source: null, signature: "", value: EMPTY_TIMELINE_RUNS });
   if (state.source === runs) return state.value;
-  const signature = handoffRunsSignature(runs);
+  const signature = timelineRunsSignature(runs);
   const value =
     signature === state.signature
       ? state.value
       : runs.map((run) => ({
           id: run.id,
+          threadId: run.threadId,
           ordinal: run.ordinal,
           providerInstanceId: run.providerInstanceId,
           modelSelection: run.modelSelection,
+          ...(run.observerNote === undefined ? {} : { observerNote: run.observerNote }),
         }));
   setState({ source: runs, signature, value });
   return value;

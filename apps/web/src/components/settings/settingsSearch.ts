@@ -472,6 +472,20 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["queue steer running turn send default behavior composer"],
   },
   {
+    id: "you-should-know",
+    title: "You should know",
+    to: "/settings/general",
+    searchTerms: ["observer side agent heads up notes missed important claude reply"],
+    scope: "environment-defaults",
+  },
+  {
+    id: "you-should-know-prompt",
+    title: "You should know prompt",
+    to: "/settings/general",
+    searchTerms: ["observer side agent prompt instructions heads up"],
+    scope: "environment-defaults",
+  },
+  {
     id: "provider-update-checks",
     title: "Provider update checks",
     to: "/settings/general",

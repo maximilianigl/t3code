@@ -76,6 +76,7 @@ import { DraftInput } from "../ui/draft-input";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
+import { ObserverSettingsRows } from "./ObserverSettings";
 import { ScopedSwitch } from "./ScopedSwitch";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -488,6 +489,12 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.responseStreamingMode !== DEFAULT_UNIFIED_SETTINGS.responseStreamingMode
       ? ["Response streaming"]
       : []),
+    ...(settings.observerEnabled !== DEFAULT_UNIFIED_SETTINGS.observerEnabled
+      ? ["You should know"]
+      : []),
+    ...(settings.observerPrompt !== DEFAULT_UNIFIED_SETTINGS.observerPrompt
+      ? ["You should know prompt"]
+      : []),
     ...(settings.enableProviderUpdateChecks !== DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks
       ? ["Provider update checks"]
       : []),
@@ -610,6 +617,8 @@ export function useSettingsRestore(onRestored?: () => void) {
       autoResumeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads,
       snoozeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads,
       responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
+      observerEnabled: DEFAULT_UNIFIED_SETTINGS.observerEnabled,
+      observerPrompt: DEFAULT_UNIFIED_SETTINGS.observerPrompt,
       enableProviderUpdateChecks: DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
       continueThreadsAfterServerUpdate: DEFAULT_UNIFIED_SETTINGS.continueThreadsAfterServerUpdate,
       backgroundActivity: DEFAULT_UNIFIED_SETTINGS.backgroundActivity,
@@ -1518,6 +1527,8 @@ export function GeneralSettingsPanel() {
             </Select>
           }
         />
+
+        <ObserverSettingsRows />
 
         <SettingsRow
           serverScoped

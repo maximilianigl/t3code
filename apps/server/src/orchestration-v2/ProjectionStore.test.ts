@@ -659,6 +659,49 @@ const restartCancelledWorkSurvivesStaleRunUpdate = Effect.gen(function* () {
   assert.deepEqual(updated?.restartCancelledBackgroundWork, work);
 });
 
+const observerNoteSurvivesStaleRunUpdate = Effect.gen(function* () {
+  const store = yield* ProjectionStore.ProjectionStoreV2;
+  const threadId = yield* addRolledBackRecoveryCandidate("observer-note-stale-update");
+  const run = (yield* store.getThreadProjection(threadId)).runs[0]!;
+  const now = yield* DateTime.now;
+  const note = {
+    learn: "The migration has not run yet.",
+    tag: "heads_up" as const,
+    explanation: "**Run the migration before deploying**",
+    feedback: null,
+  };
+  yield* store.apply({
+    id: EventId.make("event:observer-note-stale-update:completed"),
+    type: "run.updated",
+    threadId,
+    runId: run.id,
+    providerInstanceId,
+    occurredAt: now,
+    payload: { ...run, status: "completed", completedAt: now },
+  });
+  yield* store.apply({
+    id: EventId.make("event:observer-note-stale-update:recorded"),
+    type: "run.observer-note-updated",
+    threadId,
+    runId: run.id,
+    providerInstanceId,
+    occurredAt: now,
+    payload: { runId: run.id, observerNote: { ...note, feedback: "known" } },
+  });
+  yield* store.apply({
+    id: EventId.make("event:observer-note-stale-update:stale"),
+    type: "run.updated",
+    threadId,
+    runId: run.id,
+    providerInstanceId,
+    occurredAt: now,
+    payload: { ...run, status: "completed", completedAt: now },
+  });
+  const updated = (yield* store.getThreadProjection(threadId)).runs[0];
+  assert.deepEqual(updated?.observerNote, { ...note, feedback: "known" });
+  assert.deepEqual(yield* store.getRecentObserverNotes(10), [{ ...note, feedback: "known" }]);
+});
+
 const threadWorktreePathsIncludeArchivedOnRequest = Effect.gen(function* () {
   const store = yield* ProjectionStore.ProjectionStoreV2;
   const now = yield* DateTime.now;
@@ -1259,6 +1302,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
   it.effect(
     "keeps restart-cancelled work through a stale run.updated",
     () => restartCancelledWorkSurvivesStaleRunUpdate,
+  );
+  it.effect(
+    "keeps an observer note and its feedback through a stale run.updated",
+    () => observerNoteSurvivesStaleRunUpdate,
   );
   it.effect("records restart-cancelled work without regressing a run that completed since", () =>
     Effect.gen(function* () {

@@ -568,6 +568,25 @@ export const OrchestrationV2RunBackgroundWorkCancelled = Schema.Struct({
 export type OrchestrationV2RunBackgroundWorkCancelled =
   typeof OrchestrationV2RunBackgroundWorkCancelled.Type;
 
+export const OrchestrationV2ObserverNoteFeedback = Schema.Literals(["dismissed", "known"]);
+export type OrchestrationV2ObserverNoteFeedback = typeof OrchestrationV2ObserverNoteFeedback.Type;
+
+/** What the "You should know" observer flagged after the run finished. */
+export const OrchestrationV2ObserverNote = Schema.Struct({
+  learn: TrimmedNonEmptyString,
+  tag: Schema.Literals(["you_should_know", "heads_up"]),
+  explanation: Schema.String,
+  feedback: Schema.NullOr(OrchestrationV2ObserverNoteFeedback),
+});
+export type OrchestrationV2ObserverNote = typeof OrchestrationV2ObserverNote.Type;
+
+export const OrchestrationV2RunObserverNoteUpdated = Schema.Struct({
+  runId: RunId,
+  observerNote: OrchestrationV2ObserverNote,
+});
+export type OrchestrationV2RunObserverNoteUpdated =
+  typeof OrchestrationV2RunObserverNoteUpdated.Type;
+
 export const OrchestrationV2ThreadLaunchWorkspaceStrategy = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("root"),
@@ -622,6 +641,7 @@ export const OrchestrationV2Run = Schema.Struct({
   ),
   delegatedCompletion: Schema.optional(OrchestrationV2DelegatedCompletionCohort),
   workspacePreparation: Schema.optional(OrchestrationV2ThreadLaunchWorkspaceStrategy),
+  observerNote: Schema.optional(OrchestrationV2ObserverNote),
 });
 export type OrchestrationV2Run = typeof OrchestrationV2Run.Type;
 
@@ -1729,6 +1749,11 @@ export const OrchestrationV2DomainEvent = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2EventBase.fields,
+    type: Schema.Literal("run.observer-note-updated"),
+    payload: OrchestrationV2RunObserverNoteUpdated,
+  }),
+  Schema.Struct({
+    ...OrchestrationV2EventBase.fields,
     type: Schema.Literal("run-attempt.created"),
     payload: OrchestrationV2RunAttempt,
   }),
@@ -2576,6 +2601,11 @@ export const OrchestrationV2DomainEventJson = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2JsonEventBaseFields,
+    type: Schema.Literal("run.observer-note-updated"),
+    payload: OrchestrationV2RunObserverNoteUpdated,
+  }),
+  Schema.Struct({
+    ...OrchestrationV2JsonEventBaseFields,
     type: Schema.Literal("run-attempt.created"),
     payload: OrchestrationV2RunAttemptJson,
   }),
@@ -2810,6 +2840,13 @@ export const OrchestrationV2Command = Schema.Union([
     type: Schema.Literal("thread.mark-unread"),
     commandId: CommandId,
     threadId: ThreadId,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("run.observer-note.feedback"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    runId: RunId,
+    feedback: Schema.NullOr(OrchestrationV2ObserverNoteFeedback),
   }),
   Schema.Struct({
     type: Schema.Literal("thread.metadata.update"),
@@ -3215,6 +3252,13 @@ const OrchestrationV2InternalCommand = Schema.Union([
         }),
       }),
     ),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("run.observer-note.record"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    runId: RunId,
+    observerNote: OrchestrationV2ObserverNote,
   }),
   /**
    * Internal so no client can mark a request saved without the value being

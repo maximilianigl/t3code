@@ -239,6 +239,10 @@
       "types": "./src/threadPullRequests.ts",
       "import": "./src/threadPullRequests.ts"
     },
+    "./observerPrompt": {
+      "types": "./src/observerPrompt.ts",
+      "import": "./src/observerPrompt.ts"
+    },
     "./composerTrigger": {
       "types": "./src/composerTrigger.ts",
       "import": "./src/composerTrigger.ts"

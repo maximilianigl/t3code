@@ -134,6 +134,7 @@ function shouldPublishAgentAwarenessEvent(
     case "context-handoff.updated":
     case "context-transfer.created":
     case "context-transfer.updated":
+    case "run.observer-note-updated":
       return false;
   }
 }

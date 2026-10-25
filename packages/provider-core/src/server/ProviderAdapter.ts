@@ -619,6 +619,15 @@ export interface ProviderAdapterV2SessionRuntime {
     readonly providerThread: OrchestrationV2ProviderThread;
     readonly reason?: string;
   }) => Effect.Effect<{ readonly feedbackId: string }, ProviderAdapterV2Error>;
+  /**
+   * Answers a question from the running session's context without adding a
+   * turn: no tools run and the main conversation never sees it. Absent means
+   * the driver cannot answer one.
+   */
+  readonly askSideQuestion?: (input: {
+    readonly providerThread: OrchestrationV2ProviderThread;
+    readonly question: string;
+  }) => Effect.Effect<string, ProviderAdapterV2Error>;
   /** Absent means non-interactive apps with plain tool rows. */
   readonly mcpApps?: ProviderAdapterV2McpApps;
   readonly rollbackThread: (

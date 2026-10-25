@@ -88,6 +88,19 @@ Claude Code holds the turn until that window reopens, so it can keep showing as
 working. Wait for the reset, or stop the turn and continue later. The warning's
 timestamp shows when the displayed wait started.
 
+## You should know
+
+Turn on **Settings → General → You should know** to have Claude check each finished reply for
+something important you might have missed, such as a trade-off it made or a step it skipped. Most
+replies get nothing. When it does find something, a short note appears under the reply, with
+**Learn more** for the explanation. **Know this already** and dismissing both fold the note into
+one line; **Show** brings it back. Topics you mark as known are not offered again.
+
+The check is a side question to the thread's running Claude session, like Claude Code's `/btw`. It
+reuses the session's prompt cache and never enters the conversation. It is skipped when the session
+is no longer running. The default prompt is Claude Code's own; you can edit it under the same
+setting.
+
 ## Skills
 
 Claude skills come from the config directory's `skills` folder and the project's

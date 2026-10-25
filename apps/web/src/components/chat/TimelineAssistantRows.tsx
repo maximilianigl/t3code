@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { ProposedPlanCard } from "./ProposedPlanCard";
 import { HtmlRenderFrame } from "./HtmlRenderFrame";
 import { McpAppFrame } from "./McpAppFrame";
+import { ObserverNoteCard } from "./ObserverNoteCard";
 import { ChangedFilesCard } from "./ChangedFilesTree";
 import { useFileContextMenuHandler } from "../../fileContextMenu";
 import { useProject, useThreadShell } from "../../state/entities";
@@ -26,6 +27,11 @@ import { MESSAGE_HEADING_LEVEL, MessageAuthorHeading } from "./TimelineRowParts"
 export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
   const ctx = use(TimelineRowCtx);
   const messageText = row.message.text || (row.message.streaming ? "" : "(empty response)");
+  const onObserverNoteFeedback = ctx.onObserverNoteFeedback;
+  const observedRun =
+    row.showAssistantMeta && onObserverNoteFeedback !== undefined
+      ? ctx.runs.find((run) => run.id === row.message.runId && run.observerNote !== undefined)
+      : undefined;
 
   return (
     <>
@@ -68,6 +74,21 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
             message={row.message}
             showCopyButton={row.showAssistantCopyButton}
             copyStreaming={row.assistantCopyStreaming}
+          />
+        ) : null}
+        {observedRun?.observerNote && onObserverNoteFeedback ? (
+          <ObserverNoteCard
+            note={observedRun.observerNote}
+            onFeedback={(feedback) =>
+              onObserverNoteFeedback({
+                threadId: observedRun.threadId,
+                runId: observedRun.id,
+                feedback,
+              })
+            }
+            markdownCwd={ctx.markdownCwd}
+            threadRef={ctx.threadRef}
+            skills={ctx.skills}
           />
         ) : null}
       </div>

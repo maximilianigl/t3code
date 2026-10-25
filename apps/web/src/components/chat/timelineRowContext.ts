@@ -2,6 +2,7 @@ import type { WorktreeSetupSnapshot } from "@t3tools/contracts";
 import {
   type EnvironmentId,
   type MessageId,
+  type OrchestrationV2ObserverNoteFeedback,
   type OrchestrationV2TurnItem,
   type RunAttemptId,
   type ScopedThreadRef,
@@ -19,10 +20,13 @@ import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplat
 import { type ChatFileAttachment } from "../../types";
 import { ExpandedImagePreview } from "./ExpandedImagePreview";
 import { type AssistantCitationTarget } from "./AssistantCitationSource";
-import { type MessagesTimelineRow, type WorkGroupScrollAnchor } from "./MessagesTimeline.logic";
+import {
+  type MessagesTimelineRow,
+  type TimelineRun,
+  type WorkGroupScrollAnchor,
+} from "./MessagesTimeline.logic";
 import { type TimestampFormat } from "@t3tools/contracts/settings";
 import type { TurnItemDetailSource } from "../../state/queries";
-import { type HandoffTimelineRun } from "./V2LifecycleRow";
 
 /**
  * Where an expanded row reads an item's detail and a command's output. The owner's rows read them
@@ -46,7 +50,7 @@ export interface TimelineRowSharedState {
   resolvedTheme: "light" | "dark";
   workspaceRoot: string | undefined;
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
-  runs: ReadonlyArray<HandoffTimelineRun>;
+  runs: ReadonlyArray<TimelineRun>;
   activeThreadEnvironmentId: EnvironmentId;
   onRevertToTurnCount: (targetTurnCount: number, messageId: MessageId) => void;
   onUseArtifactTemplate: (template: CodexArtifactTemplate) => void;
@@ -70,6 +74,14 @@ export interface TimelineRowSharedState {
   /** Absent hides "Fork from this response", as in the guest view. */
   onForkFromRun:
     | ((input: { readonly sourceThreadId: ThreadId; readonly runId: RunId }) => Promise<void>)
+    | undefined;
+  /** Absent hides "You should know" notes, which are the owner's, as in the guest view. */
+  onObserverNoteFeedback:
+    | ((input: {
+        readonly threadId: ThreadId;
+        readonly runId: RunId;
+        readonly feedback: OrchestrationV2ObserverNoteFeedback | null;
+      }) => void)
     | undefined;
   onRollbackCheckpoint: (input: {
     readonly checkpointId: string;

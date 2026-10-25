@@ -61,6 +61,7 @@ import {
   type EnvironmentId,
   type MessageId,
   type ModelSelection,
+  type OrchestrationV2ObserverNoteFeedback,
   type PreviewAnnotationPayload,
   ProviderInstanceId,
   type ServerProvider,
@@ -450,6 +451,18 @@ export default function ChatView(props: ChatViewProps) {
     label: "load earlier thread history",
     reportFailure: false,
   });
+  const setObserverNoteFeedback = useAtomCommand(threadEnvironment.setObserverNoteFeedback, {
+    reportFailure: true,
+  });
+  const onObserverNoteFeedbackStable = useStableCallback(
+    (input: {
+      readonly threadId: ThreadId;
+      readonly runId: RunId;
+      readonly feedback: OrchestrationV2ObserverNoteFeedback | null;
+    }) => {
+      void setObserverNoteFeedback({ environmentId, input });
+    },
+  );
   const { environments } = useEnvironments();
   const providersByEnvironment = useEnvironmentProviders();
   const primaryEnvironment = usePrimaryEnvironment();
@@ -3406,6 +3419,7 @@ export default function ChatView(props: ChatViewProps) {
                 parentThreadLink={paintOnlyDisplayedTimeline ? null : parentThreadLink}
                 workflowOpening={paintOnlyDisplayedTimeline ? null : workflowOpening}
                 onForkFromRun={paintOnlyDisplayedTimeline ? async () => {} : onForkFromRunStable}
+                onObserverNoteFeedback={onObserverNoteFeedbackStable}
                 onRollbackCheckpoint={onTimelineRollbackCheckpointStable}
                 supportsConversationRollback={
                   !paintOnlyDisplayedTimeline && supportsConversationRollback

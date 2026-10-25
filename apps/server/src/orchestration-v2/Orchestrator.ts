@@ -520,6 +520,8 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
     case "thread.created.record":
       return command.parentThreadId;
     case "secret_request.record":
+    case "run.observer-note.record":
+    case "run.observer-note.feedback":
       return command.threadId;
     case "thread.fork":
     case "thread.merge_back":
@@ -7766,6 +7768,47 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     },
   );
 
+  const dispatchObserverNote = Effect.fn("Orchestrator.dispatchObserverNote")(function* (
+    command: Extract<
+      OrchestrationV2ServerCommand,
+      { readonly type: "run.observer-note.record" | "run.observer-note.feedback" }
+    >,
+    events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
+  ) {
+    const projection = yield* projectionStore
+      .getThreadRecords(command.threadId, ["runs"])
+      .pipe(
+        Effect.mapError(
+          (cause) => new OrchestratorProjectionError({ threadId: command.threadId, cause }),
+        ),
+      );
+    const run = projection.runs.find((candidate) => candidate.id === command.runId);
+    const observerNote =
+      command.type === "run.observer-note.record"
+        ? command.observerNote
+        : run?.observerNote === undefined
+          ? undefined
+          : { ...run.observerNote, feedback: command.feedback };
+    if (run === undefined || observerNote === undefined) {
+      return yield* new OrchestratorDispatchError({
+        commandId: command.commandId,
+        commandType: command.type,
+        cause: `Run ${command.runId} has no observer note.`,
+      });
+    }
+    yield* emit(
+      events,
+      command,
+    )({
+      type: "run.observer-note-updated",
+      threadId: command.threadId,
+      runId: run.id,
+      providerInstanceId: run.providerInstanceId,
+      occurredAt: yield* DateTime.now,
+      payload: { runId: run.id, observerNote },
+    });
+  });
+
   const dispatchRuntimeRequestRespond = Effect.fn("Orchestrator.dispatchRuntimeRequestRespond")(
     function* (
       command: Extract<OrchestrationV2Command, { readonly type: "runtime-request.respond" }>,
@@ -11879,6 +11922,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         break;
       case "secret_request.record":
         yield* dispatchSecretRequestRecord(command, events);
+        break;
+      case "run.observer-note.record":
+      case "run.observer-note.feedback":
+        yield* dispatchObserverNote(command, events);
         break;
       default:
         return yield* dispatchUnsupported(command);

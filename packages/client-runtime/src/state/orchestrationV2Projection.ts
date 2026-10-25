@@ -314,6 +314,15 @@ export function applyOrchestrationV2ProjectionEvent(
             : run,
         ),
       };
+    case "run.observer-note-updated":
+      return {
+        ...base,
+        runs: base.runs.map((run) =>
+          run.id === event.payload.runId
+            ? { ...run, observerNote: event.payload.observerNote }
+            : run,
+        ),
+      };
     case "run-attempt.created":
     case "run-attempt.updated": {
       const next = { ...base, attempts: upsertEntity(base.attempts, event.payload) };

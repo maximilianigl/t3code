@@ -59,6 +59,7 @@ import {
   OrchestrationV2ProviderTurnJson as OrchestrationV2ProviderTurnJsonSchema,
   OrchestrationV2RunAttemptJson as OrchestrationV2RunAttemptJsonSchema,
   OrchestrationV2RunJson as OrchestrationV2RunJsonSchema,
+  OrchestrationV2ObserverNote,
   OrchestrationV2RuntimeRequestJson as OrchestrationV2RuntimeRequestJsonSchema,
   OrchestrationV2SubagentJson as OrchestrationV2SubagentJsonSchema,
   OrchestrationV2TurnItemJson as OrchestrationV2TurnItemJsonSchema,
@@ -493,6 +494,10 @@ export interface ProjectionStoreV2Shape {
   readonly getThreadsWithPullRequests: (
     threadId?: ThreadId,
   ) => Effect.Effect<ReadonlyArray<ProjectionThreadPullRequests>, ProjectionStoreV2Error>;
+  /** Across every thread, newest run first. */
+  readonly getRecentObserverNotes: (
+    limit: number,
+  ) => Effect.Effect<ReadonlyArray<OrchestrationV2ObserverNote>, ProjectionStoreV2Error>;
   readonly getThreadWorktreePaths: (options?: {
     readonly includeArchived?: boolean;
   }) => Effect.Effect<
@@ -749,6 +754,9 @@ function preserveRunRecordedFields(
     current.restartCancelledBackgroundWork !== undefined
       ? { restartCancelledBackgroundWork: current.restartCancelledBackgroundWork }
       : {}),
+    ...(next.observerNote === undefined && current.observerNote !== undefined
+      ? { observerNote: current.observerNote }
+      : {}),
   };
 }
 
@@ -872,6 +880,15 @@ export function applyToProjection(
                 ...run,
                 restartCancelledBackgroundWork: event.payload.restartCancelledBackgroundWork,
               }
+            : run,
+        ),
+      };
+    case "run.observer-note-updated":
+      return {
+        ...base,
+        runs: base.runs.map((run) =>
+          run.id === event.payload.runId
+            ? { ...run, observerNote: event.payload.observerNote }
             : run,
         ),
       };
@@ -1168,6 +1185,8 @@ const encodeRunPayload = Schema.encodeEffect(Schema.fromJsonString(Orchestration
 const encodeRestartCancelledBackgroundWork = Schema.encodeEffect(
   Schema.fromJsonString(OrchestrationV2RunJsonSchema.fields.restartCancelledBackgroundWork),
 );
+const encodeObserverNote = Schema.encodeEffect(Schema.fromJsonString(OrchestrationV2ObserverNote));
+const decodeObserverNote = Schema.decodeEffect(Schema.fromJsonString(OrchestrationV2ObserverNote));
 const encodeRunAttemptPayload = Schema.encodeEffect(
   Schema.fromJsonString(OrchestrationV2RunAttemptJsonSchema),
 );
@@ -2099,10 +2118,22 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                 requested_at = excluded.requested_at,
                 completed_at = excluded.completed_at,
                 payload_json = ${keepRecordedRunField(
-                  keepRecordedRunField(sql`excluded.payload_json`, "$.delegatedCompletion"),
-                  "$.restartCancelledBackgroundWork",
+                  keepRecordedRunField(
+                    keepRecordedRunField(sql`excluded.payload_json`, "$.delegatedCompletion"),
+                    "$.restartCancelledBackgroundWork",
+                  ),
+                  "$.observerNote",
                 )}
             `;
+              break;
+            }
+            case "run.observer-note-updated": {
+              const noteJson = yield* encodeObserverNote(event.payload.observerNote);
+              yield* sql`
+                UPDATE orchestration_v2_projection_runs
+                SET payload_json = json_set(payload_json, '$.observerNote', json(${noteJson}))
+                WHERE run_id = ${event.payload.runId} AND thread_id = ${event.threadId}
+              `;
               break;
             }
             case "run.background-work-cancelled": {
@@ -6232,6 +6263,18 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         Effect.mapError((cause) => new ProjectionStoreSetupError({ cause })),
       );
 
+    const getRecentObserverNotes: ProjectionStoreV2Shape["getRecentObserverNotes"] = (limit) =>
+      Effect.gen(function* () {
+        const rows = yield* sql<{ readonly note_json: string }>`
+          SELECT json_extract(payload_json, '$.observerNote') AS note_json
+          FROM orchestration_v2_projection_runs
+          WHERE json_type(payload_json, '$.observerNote') = 'object'
+          ORDER BY completed_at DESC
+          LIMIT ${limit}
+        `;
+        return yield* Effect.forEach(rows, (row) => decodeObserverNote(row.note_json));
+      }).pipe(Effect.mapError((cause) => new ProjectionStoreSetupError({ cause })));
+
     const getThreadWorktreePaths: ProjectionStoreV2Shape["getThreadWorktreePaths"] = (options) =>
       sql<{ readonly thread_id: string; readonly worktree_path: string }>`
         SELECT thread_id, json_extract(payload_json, '$.worktreePath') AS worktree_path
@@ -6676,6 +6719,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       getThread: readOnReader(getThread),
       getSettlementCandidates: readOnReader(getSettlementCandidates),
       getThreadsWithPullRequests: readOnReader(getThreadsWithPullRequests),
+      getRecentObserverNotes: readOnReader(getRecentObserverNotes),
       getThreadWorktreePaths: readOnReader(getThreadWorktreePaths),
       getThreadProjection,
       getTurnStartContext: readOnReader(getTurnStartContext),
@@ -6876,6 +6920,21 @@ export const layerMemory: Layer.Layer<ProjectionStoreV2> = Layer.effect(
                 ? [{ threadId: thread.id, worktreePath: thread.worktreePath }]
                 : [],
             ),
+          ),
+        ),
+      getRecentObserverNotes: (limit) =>
+        Ref.get(replayState).pipe(
+          Effect.map((state) =>
+            [...state.projections.values()]
+              .flatMap(({ runs }) => runs)
+              .filter((run) => run.observerNote !== undefined && run.completedAt !== null)
+              .toSorted(
+                (left, right) =>
+                  DateTime.toEpochMillis(right.completedAt!) -
+                  DateTime.toEpochMillis(left.completedAt!),
+              )
+              .slice(0, limit)
+              .map((run) => run.observerNote!),
           ),
         ),
       getThreadsWithPullRequests: (threadId) =>
