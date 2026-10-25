@@ -263,7 +263,8 @@ export function AppearancePreferencesProvider(props: { readonly children: ReactN
     [updatePreferences],
   );
 
-  const mathRenderingEnabled = storedPreferences?.mathRenderingEnabled === true;
+  // The fork renders math unless the device turned it off.
+  const mathRenderingEnabled = storedPreferences?.mathRenderingEnabled !== false;
   const setMathRenderingEnabled = useCallback(
     (value: boolean) => updatePreferences({ mathRenderingEnabled: value }),
     [updatePreferences],
