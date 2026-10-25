@@ -110,9 +110,7 @@ export function SideChatHeader(props: { environmentId: EnvironmentId; threadId: 
                 size="sm"
                 checked={allowEdits}
                 disabled={busy || (!allowEdits && !canAllowEdits)}
-                onCheckedChange={(checked) =>
-                  void run(() => actions.setAllowEdits(props.threadId, checked))
-                }
+                onCheckedChange={(checked) => actions.setAllowEdits(props.threadId, checked)}
               />
             </label>
           }

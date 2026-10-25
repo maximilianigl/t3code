@@ -69,9 +69,6 @@ export function useSideChatActions(parentRef: ScopedThreadRef | null) {
   const updateMetadata = useAtomCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
   });
-  const setRuntimeMode = useAtomCommand(threadEnvironment.setRuntimeMode, {
-    reportFailure: false,
-  });
   const deleteThread = useAtomCommand(threadEnvironment.delete, { reportFailure: false });
   const mergeBack = useAtomCommand(threadEnvironment.mergeBack, { reportFailure: false });
 
@@ -204,26 +201,16 @@ export function useSideChatActions(parentRef: ScopedThreadRef | null) {
     return (await start({ history: defaultHistory })) !== null;
   });
 
-  const setAllowEdits = useStableCallback(async (childThreadId: ThreadId, allow: boolean) => {
+  // Set as the composer's permission pick, applied with the next send. Changing the
+  // thread's mode now would end a running Claude turn, which cannot switch in session.
+  const setAllowEdits = useStableCallback((childThreadId: ThreadId, allow: boolean) => {
     if (parentRef === null) return;
-    const result = await setRuntimeMode({
-      environmentId: parentRef.environmentId,
-      input: {
-        threadId: childThreadId,
-        runtimeMode: allow ? SIDE_CHAT_EDITABLE_RUNTIME_MODE : SIDE_CHAT_READ_ONLY_RUNTIME_MODE,
-      },
-    });
-    if (result._tag === "Failure") {
-      if (!isAtomCommandInterrupted(result)) {
-        reportFailure("Could not change edit access", squashAtomCommandFailure(result));
-      }
-      return;
-    }
-    // The composer's own permission pick outranks the thread's mode on the
-    // next send, so drop it and let the switch decide.
     useComposerDraftStore
       .getState()
-      .setRuntimeMode(scopeThreadRef(parentRef.environmentId, childThreadId), null);
+      .setRuntimeMode(
+        scopeThreadRef(parentRef.environmentId, childThreadId),
+        allow ? SIDE_CHAT_EDITABLE_RUNTIME_MODE : SIDE_CHAT_READ_ONLY_RUNTIME_MODE,
+      );
   });
 
   const discard = useStableCallback(async (childThreadId: ThreadId) => {
