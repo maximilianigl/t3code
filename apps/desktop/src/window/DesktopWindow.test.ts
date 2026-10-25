@@ -39,6 +39,7 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import * as DesktopExternalLinks from "../settings/DesktopExternalLinks.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
@@ -310,17 +311,20 @@ function layerTest(input: {
           popupTemplate: input.onPopupTemplate ?? (() => Effect.void),
         }),
         Layer.succeed(ElectronShell.ElectronShell, {
-          openExternal: (url) =>
-            Effect.sync(() => {
-              input.openedExternalUrls?.push(url);
-              return true;
-            }),
+          openExternal: () => Effect.succeed(true),
           openSystemSettings: () => Effect.succeed(true),
           copyText: (text) =>
             Effect.sync(() => {
               input.copiedTexts?.push(text);
             }),
         } satisfies ElectronShell.ElectronShell["Service"]),
+        Layer.succeed(DesktopExternalLinks.DesktopExternalLinks, {
+          open: (url) =>
+            Effect.sync(() => {
+              input.openedExternalUrls?.push(url);
+              return true;
+            }),
+        } satisfies DesktopExternalLinks.DesktopExternalLinks["Service"]),
         layerElectronTheme,
         layerElectronWindow,
         Layer.mock(PreviewPasskeys.PreviewPasskeys)({
@@ -431,6 +435,9 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
             openSystemSettings: () => Effect.succeed(true),
             copyText: () => Effect.void,
           } satisfies ElectronShell.ElectronShell["Service"]),
+          Layer.succeed(DesktopExternalLinks.DesktopExternalLinks, {
+            open: () => Effect.succeed(true),
+          } satisfies DesktopExternalLinks.DesktopExternalLinks["Service"]),
           layerElectronTheme,
           Layer.succeed(ElectronWindow.ElectronWindow, electronWindowShape),
           Layer.mock(PreviewPasskeys.PreviewPasskeys)({
